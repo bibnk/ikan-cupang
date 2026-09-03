@@ -240,4 +240,27 @@ DEFAULT_IMAP_CONFIG = {
     "bestmail24.eu": {"server": "imap.bestmail24.eu", "port": 993},
     "azmailz.com": {"server": "zmail.mail.plala.or.jp", "port": 993},
     "imailzone.com": {"server": "imap.zone.eu", "port": 993},
+
+    # --- GMX (international) ---
+    "gmx.com": {"server": "imap.gmx.com", "port": 993},
+    "gmx.net": {"server": "imap.gmx.net", "port": 993},
+    "gmx.de": {"server": "imap.gmx.net", "port": 993},
+    "gmx.at": {"server": "imap.gmx.net", "port": 993},
+    "gmx.ch": {"server": "imap.gmx.net", "port": 993},
+    "gmx.co.uk": {"server": "imap.gmx.com", "port": 993},
+    "gmx.us": {"server": "imap.gmx.com", "port": 993},
+    "gmx.fr": {"server": "imap.gmx.com", "port": 993},
+    "gmx.es": {"server": "imap.gmx.com", "port": 993},
+    "gmx.it": {"server": "imap.gmx.com", "port": 993},
+    "gmx.info": {"server": "imap.gmx.com", "port": 993},
+    "gmx.org": {"server": "imap.gmx.com", "port": 993},
+    "gmx.biz": {"server": "imap.gmx.com", "port": 993},
+    "gmx.eu": {"server": "imap.gmx.com", "port": 993},
+
+    # --- Rambler ---
+    "rambler.ru": {"server": "imap.rambler.ru", "port": 993},
+    "lenta.ru": {"server": "imap.rambler.ru", "port": 993},
+    "myrambler.ru": {"server": "imap.rambler.ru", "port": 993},
+    "autorambler.ru": {"server": "imap.rambler.ru", "port": 993},
+    "ro.ru": {"server": "imap.rambler.ru", "port": 993},
 }
