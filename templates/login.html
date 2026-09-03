@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="login-wrapper">
+            <div class="login-card">
+                <div class="login-header">
+                    <div class="logo">
+                        <div class="logo-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                        </div>
+                        <h1><span class="gradient-text">Sign in</span></h1>
+                    </div>
+                    <p class="subtitle">Masukkan kode akses untuk melanjutkan</p>
+                </div>
+
+                {% if error %}
+                <div class="login-error">{{ error }}</div>
+                {% endif %}
+
+                <form method="POST" action="{{ url_for('login_page') }}" class="login-form">
+                    <div class="form-group">
+                        <label for="code-input">
+                            <span class="label-icon">🔑</span>
+                            Kode Akses
+                        </label>
+                        <input type="password" id="code-input" name="code" placeholder="Masukkan kode akses..." required
+                            autofocus autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn-primary">
+                        <span class="btn-icon">🔓</span>
+                        <span class="btn-text">Masuk</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

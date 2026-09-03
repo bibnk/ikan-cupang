@@ -1,0 +1,67 @@
+# =====================================================
+# SENSITIVE / RUNTIME STATE - DO NOT COMMIT
+# =====================================================
+# Flask secret + admin/access codes (live credentials)
+.secret_key
+# Secret URL prefix the real tool is mounted under (instance-specific)
+.secret_path
+access_codes.json
+
+# Per-user state and master success file (contains email:pass)
+imap_success.json
+
+# Per-job result files (live.txt/die.txt contain credentials)
+jobs/
+
+# Customizable runtime lists (instance-specific)
+skip_domains.json
+subject_exclusion_list.json
+
+# =====================================================
+# Python
+# =====================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+ENV/
+
+# =====================================================
+# Tests / coverage
+# =====================================================
+.pytest_cache/
+.hypothesis/
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+.tox/
+
+# =====================================================
+# Editor / OS
+# =====================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# =====================================================
+# Logs
+# =====================================================
+*.log
+logs/

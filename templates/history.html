@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>window.APP_BASE = "{{ app_base }}";</script>
+</head>
+
+<body>
+    <div class="app-container">
+        <button class="nav-toggle" id="nav-toggle"
+            onclick="document.getElementById('floating-nav').classList.toggle('nav-open')">
+            <span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>
+        </button>
+        <nav class="floating-nav" id="floating-nav">
+            <a href="{{ url_for('index') }}" class="fnav-link"><span class="fnav-icon">📬</span><span class="fnav-label">Console</span></a>
+            <a href="{{ url_for('get_email_page') }}" class="fnav-link"><span class="fnav-icon">📨</span><span class="fnav-label">Get
+                    Email</span></a>
+            <a href="{{ url_for('loop_delete_page') }}" class="fnav-link"><span class="fnav-icon">🔄</span><span class="fnav-label">Loop
+                    Delete</span></a>
+            <a href="{{ url_for('history_page') }}" class="fnav-link active"><span class="fnav-icon">📋</span><span
+                    class="fnav-label">History</span></a>
+            {% if is_admin %}<a href="{{ url_for('admin_page') }}" class="fnav-link"><span class="fnav-icon">⚙️</span><span
+                    class="fnav-label">Admin</span></a>{% endif %}
+            <div class="fnav-divider"></div>
+            <a href="{{ url_for('logout') }}" class="fnav-link fnav-logout"><span class="fnav-icon">🚪</span><span
+                    class="fnav-label">Logout</span></a>
+        </nav>
+
+        <header class="header">
+            <div class="header-glow"></div>
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <h1>Job <span class="gradient-text"
+                            style="background:linear-gradient(135deg,#f59e0b,#d97706);-webkit-background-clip:text;background-clip:text;">History</span>
+                    </h1>
+                </div>
+                <p class="subtitle">Riwayat semua job — tersedia di semua device</p>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div id="history-loading" class="ge-loading">
+                <div class="ge-spinner"></div>
+                <p>Memuat riwayat job...</p>
+            </div>
+
+            <div id="history-empty" class="ge-empty hidden">
+                <div class="ge-empty-icon">📭</div>
+                <p>Belum ada job. Mulai dari halaman Console.</p>
+            </div>
+
+            <div id="history-list"></div>
+        </main>
+        <footer class="footer">
+            <p>History</p>
+        </footer>
+    </div>
+    <script src="{{ url_for('static', filename='history.js') }}"></script>
+</body>
+
+</html>

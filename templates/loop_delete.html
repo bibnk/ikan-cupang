@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cleanup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>window.APP_BASE = "{{ app_base }}";</script>
+</head>
+
+<body>
+    <div class="app-container">
+        <button class="nav-toggle" id="nav-toggle"
+            onclick="document.getElementById('floating-nav').classList.toggle('nav-open')">
+            <span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>
+        </button>
+        <nav class="floating-nav" id="floating-nav">
+            <a href="{{ url_for('index') }}" class="fnav-link"><span class="fnav-icon">📬</span><span class="fnav-label">Console</span></a>
+            <a href="{{ url_for('get_email_page') }}" class="fnav-link"><span class="fnav-icon">📨</span><span class="fnav-label">Get
+                    Email</span></a>
+            <a href="{{ url_for('loop_delete_page') }}" class="fnav-link active"><span class="fnav-icon">🔄</span><span
+                    class="fnav-label">Loop Delete</span></a>
+            <a href="{{ url_for('history_page') }}" class="fnav-link"><span class="fnav-icon">📋</span><span
+                    class="fnav-label">History</span></a>
+            {% if is_admin %}<a href="{{ url_for('admin_page') }}" class="fnav-link"><span class="fnav-icon">⚙️</span><span
+                    class="fnav-label">Admin</span></a>{% endif %}
+            <div class="fnav-divider"></div>
+            <a href="{{ url_for('logout') }}" class="fnav-link fnav-logout"><span class="fnav-icon">🚪</span><span
+                    class="fnav-label">Logout</span></a>
+        </nav>
+
+        <header class="header">
+            <div class="header-glow"></div>
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="1 4 1 10 7 10" />
+                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                        </svg>
+                    </div>
+                    <h1>Loop <span class="gradient-text"
+                            style="background:linear-gradient(135deg,#ef4444,#dc2626);-webkit-background-clip:text;background-clip:text;">Delete</span>
+                    </h1>
+                </div>
+                <p class="subtitle">Hapus email otomatis secara terus-menerus — berjalan di background</p>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Start Form -->
+            <form id="ld-form" class="form-section">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="ld-account"><span class="label-icon">🔐</span> Akun Email <span
+                                class="label-hint">Format: email:password</span></label>
+                        <input type="text" id="ld-account" placeholder="user@example.com:password123" required
+                            autocomplete="off">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="ld-senders"><span class="label-icon">📧</span> Target Sender <span
+                                class="label-hint">Opsional jika keyword diisi</span></label>
+                        <textarea id="ld-senders" placeholder="noreply@booking.com&#10;@booking.com&#10;@agoda.com"
+                            rows="3"></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="ld-keywords"><span class="label-icon">🔍</span> Keyword (Subject) <span
+                                class="label-hint">Opsional jika sender diisi</span></label>
+                        <textarea id="ld-keywords" placeholder="booking confirmation&#10;payment receipt"
+                            rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="ld-interval"><span class="label-icon">⏱️</span> Interval (detik)</label>
+                        <input type="number" id="ld-interval" value="5" min="2" max="300">
+                        <span class="input-desc">Jeda antar siklus penghapusan</span>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button type="submit" id="ld-start-btn" class="btn-primary"
+                        style="background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 4px 20px rgba(239,68,68,0.3);">
+                        <span class="btn-icon">🔄</span><span class="btn-text">Mulai Loop Delete</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Active Jobs -->
+            <section id="ld-jobs-section" class="form-section">
+                <div class="section-header">
+                    <h2>🔄 Loop Delete Aktif</h2>
+                    <span id="ld-jobs-count" class="live-counter-badge"
+                        style="background:rgba(239,68,68,0.1);color:#ef4444;">0</span>
+                </div>
+                <div id="ld-jobs-list" class="ld-jobs-list">
+                    <div class="ld-empty">Belum ada loop delete yang berjalan</div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>Cleanup</p>
+        </footer>
+    </div>
+    <script src="{{ url_for('static', filename='loop_delete.js') }}"></script>
+</body>
+
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>window.APP_BASE = "{{ app_base }}";</script>
+</head>
+
+<body>
+    <div class="app-container">
+        <button class="nav-toggle" id="nav-toggle"
+            onclick="document.getElementById('floating-nav').classList.toggle('nav-open')">
+            <span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>
+        </button>
+        <nav class="floating-nav" id="floating-nav">
+            <a href="{{ url_for('index') }}" class="fnav-link"><span class="fnav-icon">📬</span><span class="fnav-label">Console</span></a>
+            <a href="{{ url_for('get_email_page') }}" class="fnav-link active"><span class="fnav-icon">📨</span><span class="fnav-label">Get
+                    Email</span></a>
+            <a href="{{ url_for('loop_delete_page') }}" class="fnav-link"><span class="fnav-icon">🔄</span><span class="fnav-label">Loop
+                    Delete</span></a>
+            <a href="{{ url_for('history_page') }}" class="fnav-link"><span class="fnav-icon">📋</span><span
+                    class="fnav-label">History</span></a>
+            {% if is_admin %}<a href="{{ url_for('admin_page') }}" class="fnav-link"><span class="fnav-icon">⚙️</span><span
+                    class="fnav-label">Admin</span></a>{% endif %}
+            <div class="fnav-divider"></div>
+            <a href="{{ url_for('logout') }}" class="fnav-link fnav-logout"><span class="fnav-icon">🚪</span><span
+                    class="fnav-label">Logout</span></a>
+        </nav>
+
+        <header class="header">
+            <div class="header-glow"></div>
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                        </svg>
+                    </div>
+                    <h1>Get <span class="gradient-text"
+                            style="background:linear-gradient(135deg,#10b981,#059669);-webkit-background-clip:text;background-clip:text;">Email</span>
+                    </h1>
+                </div>
+                <p class="subtitle">Baca pesan terbaru dari akun</p>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <form id="get-email-form" class="form-section">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="ge-account"><span class="label-icon">🔐</span> Akun Email <span
+                                class="label-hint">Format: email:password</span></label>
+                        <input type="text" id="ge-account" placeholder="user@example.com:password123" required
+                            autocomplete="off">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="ge-senders"><span class="label-icon">📧</span> Target Sender <span
+                                class="label-hint">Kosongkan untuk default</span></label>
+                        <textarea id="ge-senders" placeholder="Kosongkan untuk default: @booking.com, email.campaign@sg.booking.com, @account.agoda.com"
+                            rows="3"></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="ge-keywords"><span class="label-icon">🔍</span> Keyword (Subject) <span
+                                class="label-hint">Opsional jika sender diisi</span></label>
+                        <textarea id="ge-keywords" placeholder="booking confirmation&#10;payment receipt"
+                            rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="ge-days"><span class="label-icon">📅</span> Jangka Waktu (hari)</label>
+                        <input type="number" id="ge-days" value="365" min="1" max="3650">
+                        <span class="input-desc">Cek email dari X hari yang lalu</span>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button type="submit" id="ge-submit" class="btn-primary"
+                        style="background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 4px 20px rgba(16,185,129,0.3);">
+                        <span class="btn-icon">📨</span><span class="btn-text">Ambil Email</span>
+                    </button>
+                </div>
+            </form>
+
+            <div id="ge-loading" class="ge-loading hidden">
+                <div class="ge-spinner"></div>
+                <p>Menghubungi server dan mengambil pesan...</p>
+            </div>
+            <div id="ge-error" class="ge-error hidden"></div>
+
+            <section id="ge-results" class="ge-results hidden">
+                <div class="section-header">
+                    <h2>📬 Email Ditemukan</h2>
+                    <span id="ge-count" class="live-counter-badge">0</span>
+                </div>
+                <div id="ge-email-list" class="ge-email-list"></div>
+            </section>
+
+            <div id="ge-empty" class="ge-empty hidden">
+                <div class="ge-empty-icon">📭</div>
+                <p>Tidak ada email ditemukan dari sender/keyword tersebut.</p>
+            </div>
+        </main>
+        <footer class="footer">
+            <p>Messages</p>
+        </footer>
+    </div>
+
+    <!-- Email Body Modal -->
+    <div id="ge-modal" class="ge-modal hidden">
+        <div class="ge-modal-backdrop"></div>
+        <div class="ge-modal-container">
+            <div class="ge-modal-header">
+                <div class="ge-modal-title">
+                    <span class="ge-modal-subject"></span>
+                    <span class="ge-modal-info"></span>
+                </div>
+                <button class="ge-modal-close" id="ge-modal-close">&times;</button>
+            </div>
+            <div class="ge-modal-body"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='get_email.js') }}"></script>
+</body>
+
+</html>

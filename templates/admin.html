@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>window.APP_BASE = "{{ app_base }}";</script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Navigation -->
+        <button class="nav-toggle" id="nav-toggle"
+            onclick="document.getElementById('floating-nav').classList.toggle('nav-open')">
+            <span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>
+        </button>
+        <nav class="floating-nav" id="floating-nav">
+            <a href="{{ url_for('index') }}" class="fnav-link"><span class="fnav-icon">📬</span><span class="fnav-label">Console</span></a>
+            <a href="{{ url_for('get_email_page') }}" class="fnav-link"><span class="fnav-icon">📨</span><span class="fnav-label">Get
+                    Email</span></a>
+            <a href="{{ url_for('loop_delete_page') }}" class="fnav-link"><span class="fnav-icon">🔄</span><span class="fnav-label">Loop
+                    Delete</span></a>
+            <a href="{{ url_for('history_page') }}" class="fnav-link"><span class="fnav-icon">📋</span><span
+                    class="fnav-label">History</span></a>
+            {% if is_admin %}<a href="{{ url_for('admin_page') }}" class="fnav-link active"><span class="fnav-icon">⚙️</span><span
+                    class="fnav-label">Admin</span></a>{% endif %}
+            <div class="fnav-divider"></div>
+            <a href="{{ url_for('logout') }}" class="fnav-link fnav-logout"><span class="fnav-icon">🚪</span><span
+                    class="fnav-label">Logout</span></a>
+        </nav>
+
+        <header class="header">
+            <div class="header-glow"></div>
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3" />
+                            <path
+                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                        </svg>
+                    </div>
+                    <h1>Kelola <span class="gradient-text"
+                            style="background:linear-gradient(135deg,#f59e0b,#d97706);-webkit-background-clip:text;background-clip:text;">Kode
+                            Akses</span></h1>
+                </div>
+                <p class="subtitle">Tambah atau hapus kode akses untuk pengguna</p>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Add Code -->
+            <div class="form-section">
+                <h2 style="margin-bottom:20px;">➕ Tambah Kode Akses Baru</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="new-code"><span class="label-icon">🔑</span> Kode Akses</label>
+                        <input type="text" id="new-code" placeholder="Masukkan kode baru (min 3 karakter)"
+                            autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="code-label"><span class="label-icon">🏷️</span> Label</label>
+                        <input type="text" id="code-label" placeholder="Nama pengguna / label" autocomplete="off">
+                    </div>
+                </div>
+                <button id="add-code-btn" class="btn-primary"
+                    style="margin-top:16px;background:linear-gradient(135deg,#f59e0b,#d97706);box-shadow:0 4px 20px rgba(245,158,11,0.3);">
+                    <span class="btn-icon">➕</span>
+                    <span class="btn-text">Tambah Kode</span>
+                </button>
+                <div id="admin-msg" class="admin-msg hidden"></div>
+            </div>
+
+            <!-- Existing Codes -->
+            <div class="form-section">
+                <h2 style="margin-bottom:20px;">📋 Daftar Kode Akses</h2>
+                <div class="admin-codes-list" id="codes-list">
+                    {% for c in codes %}
+                    <div class="admin-code-item" data-index="{{ loop.index0 }}">
+                        <div class="admin-code-info">
+                            <span class="admin-code-label">{{ c.label or 'unnamed' }}</span>
+                            <span class="admin-code-hash">{{ c.code_hash[:12] }}...</span>
+                        </div>
+                        <button class="admin-delete-btn" onclick="deleteCode({{ loop.index0 }}, '{{ c.label }}')" {% if
+                            loop.index0==0 %}title="Default code" {% endif %}>
+                            🗑️ Hapus
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Skip Domains -->
+            <div class="form-section">
+                <h2 style="margin-bottom:20px;">🚫 Skip Domains</h2>
+                <p style="color:#94a3b8;margin-bottom:12px;font-size:14px;">
+                    Satu pattern per baris. Akun dengan domain yang memuat salah satu pattern (substring,
+                    case-insensitive) akan di-skip oleh job.
+                </p>
+                <div class="form-group">
+                    <label for="skip-domains-textarea"><span class="label-icon">📝</span> Daftar Skip-Domains</label>
+                    <textarea id="skip-domains-textarea" rows="10"
+                        style="width:100%;font-family:'Fira Code',monospace;font-size:14px;"
+                        placeholder="hotmail&#10;live&#10;outlook"></textarea>
+                </div>
+                <button id="save-skip-domains-btn" class="btn-primary"
+                    style="margin-top:16px;background:linear-gradient(135deg,#f59e0b,#d97706);box-shadow:0 4px 20px rgba(245,158,11,0.3);">
+                    <span class="btn-icon">💾</span>
+                    <span class="btn-text">Simpan</span>
+                </button>
+                <div id="skip-domains-msg" class="admin-msg hidden"></div>
+            </div>
+
+            <!-- Subject Exclusion List -->
+            <div class="form-section">
+                <h2 style="margin-bottom:20px;">🛑 Subject Exclusion List</h2>
+                <p style="color:#94a3b8;margin-bottom:12px;font-size:14px;">
+                    Satu pattern per baris. Email yang Subject-nya memuat salah satu pattern (substring,
+                    case-insensitive) akan di-exclude dari hasil <code>live.txt</code>. Default: pattern OTP
+                    Booking.com.
+                </p>
+                <div class="form-group">
+                    <label for="subject-exclusion-textarea"><span class="label-icon">📝</span> Daftar
+                        Subject-Exclusion</label>
+                    <textarea id="subject-exclusion-textarea" rows="10"
+                        style="width:100%;font-family:'Fira Code',monospace;font-size:14px;"
+                        placeholder="is your verification code&#10;newsletter&#10;notification only"></textarea>
+                </div>
+                <button id="save-subject-exclusion-btn" class="btn-primary"
+                    style="margin-top:16px;background:linear-gradient(135deg,#f59e0b,#d97706);box-shadow:0 4px 20px rgba(245,158,11,0.3);">
+                    <span class="btn-icon">💾</span>
+                    <span class="btn-text">Simpan</span>
+                </button>
+                <div id="subject-exclusion-msg" class="admin-msg hidden"></div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>Settings</p>
+        </footer>
+    </div>
+
+    <script>
+        const APP_BASE = (window.APP_BASE || "");
+        (function () {
+            const addBtn = document.getElementById("add-code-btn");
+            const msgDiv = document.getElementById("admin-msg");
+
+            function showMsg(text, isError) {
+                msgDiv.textContent = text;
+                msgDiv.className = "admin-msg " + (isError ? "error" : "success");
+                msgDiv.classList.remove("hidden");
+                setTimeout(() => msgDiv.classList.add("hidden"), 3000);
+            }
+
+            addBtn.addEventListener("click", async function () {
+                const code = document.getElementById("new-code").value.trim();
+                const label = document.getElementById("code-label").value.trim();
+                if (!code) return alert("Kode tidak boleh kosong!");
+                try {
+                    const res = await fetch(APP_BASE+"/api/admin/add-code", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ code, label })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showMsg(data.message, false);
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showMsg(data.error, true);
+                    }
+                } catch (e) {
+                    showMsg("Error: " + e.message, true);
+                }
+            });
+
+            window.deleteCode = async function (idx, label) {
+                if (!confirm("Hapus kode '" + label + "'?")) return;
+                try {
+                    const res = await fetch(APP_BASE+"/api/admin/delete-code", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ index: idx })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showMsg(data.message, false);
+                        setTimeout(() => location.reload(), 500);
+                    } else {
+                        showMsg(data.error, true);
+                    }
+                } catch (e) {
+                    showMsg("Error: " + e.message, true);
+                }
+            };
+        })();
+
+        // Skip Domains: load on page mount + save on click (Requirement 10.1-10.5)
+        (function () {
+            const skipTextarea = document.getElementById("skip-domains-textarea");
+            const skipSaveBtn = document.getElementById("save-skip-domains-btn");
+            const skipMsgDiv = document.getElementById("skip-domains-msg");
+
+            function showSkipMsg(text, isError) {
+                skipMsgDiv.textContent = text;
+                skipMsgDiv.className = "admin-msg " + (isError ? "error" : "success");
+                skipMsgDiv.classList.remove("hidden");
+                setTimeout(function () { skipMsgDiv.classList.add("hidden"); }, 3000);
+            }
+
+            (async function loadSkipDomains() {
+                try {
+                    const res = await fetch(APP_BASE+"/api/admin/skip-domains");
+                    if (!res.ok) {
+                        showSkipMsg("Gagal memuat: HTTP " + res.status, true);
+                        return;
+                    }
+                    const data = await res.json();
+                    skipTextarea.value = (data.domains || []).join("\n");
+                } catch (e) {
+                    showSkipMsg("Error: " + e.message, true);
+                }
+            })();
+
+            skipSaveBtn.addEventListener("click", async function () {
+                const lines = skipTextarea.value.split("\n");
+                try {
+                    const res = await fetch(APP_BASE+"/api/admin/skip-domains", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ domains: lines })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        skipTextarea.value = (data.domains || []).join("\n");
+                        showSkipMsg("Tersimpan (" + (data.domains || []).length + " entries)", false);
+                    } else if (res.status === 400 && data.rejected) {
+                        showSkipMsg("Entry ditolak: " + data.rejected.join(", "), true);
+                    } else {
+                        showSkipMsg(data.error || "HTTP " + res.status, true);
+                    }
+                } catch (e) {
+                    showSkipMsg("Error: " + e.message, true);
+                }
+            });
+        })();
+
+        // Subject Exclusion List: load on page mount + save on click (Requirement 10.1-10.5)
+        (function () {
+            const exclTextarea = document.getElementById("subject-exclusion-textarea");
+            const exclSaveBtn = document.getElementById("save-subject-exclusion-btn");
+            const exclMsgDiv = document.getElementById("subject-exclusion-msg");
+
+            function showExclMsg(text, isError) {
+                exclMsgDiv.textContent = text;
+                exclMsgDiv.className = "admin-msg " + (isError ? "error" : "success");
+                exclMsgDiv.classList.remove("hidden");
+                setTimeout(function () { exclMsgDiv.classList.add("hidden"); }, 3000);
+            }
+
+            (async function loadSubjectExclusion() {
+                try {
+                    const res = await fetch(APP_BASE+"/api/admin/subject-exclusion-list");
+                    if (!res.ok) {
+                        showExclMsg("Gagal memuat: HTTP " + res.status, true);
+                        return;
+                    }
+                    const data = await res.json();
+                    exclTextarea.value = (data.patterns || []).join("\n");
+                } catch (e) {
+                    showExclMsg("Error: " + e.message, true);
+                }
+            })();
+
+            exclSaveBtn.addEventListener("click", async function () {
+                const lines = exclTextarea.value.split("\n");
+                try {
+                    const res = await fetch(APP_BASE+"/api/admin/subject-exclusion-list", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ patterns: lines })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        exclTextarea.value = (data.patterns || []).join("\n");
+                        showExclMsg("Tersimpan (" + (data.patterns || []).length + " entries)", false);
+                    } else if (res.status === 400 && data.rejected) {
+                        showExclMsg("Entry ditolak: " + data.rejected.join(", "), true);
+                    } else {
+                        showExclMsg(data.error || "HTTP " + res.status, true);
+                    }
+                } catch (e) {
+                    showExclMsg("Error: " + e.message, true);
+                }
+            });
+        })();
+    </script>
+</body>
+
+</html>

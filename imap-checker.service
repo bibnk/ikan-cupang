@@ -1,0 +1,28 @@
+[Unit]
+Description=IMAP Checker Web Application
+After=network.target
+
+[Service]
+Type=exec
+User=imapchecker
+Group=imapchecker
+WorkingDirectory=/opt/imap-checker
+Environment="PATH=/opt/imap-checker/venv/bin"
+# OS limits — increased for high-concurrency IMAP checking (up to 1000 threads/job).
+# Default Linux fd ceiling is 1024 which is too low for ~500-1000 concurrent IMAP
+# sockets plus log files. 16384 gives comfortable headroom.
+LimitNOFILE=16384
+LimitNPROC=8192
+ExecStart=/opt/imap-checker/venv/bin/gunicorn \
+    --workers 1 \
+    --threads 32 \
+    --bind 127.0.0.1:5000 \
+    --timeout 600 \
+    --access-logfile /opt/imap-checker/access.log \
+    --error-logfile /opt/imap-checker/error.log \
+    wsgi:application
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

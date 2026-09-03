@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>window.APP_BASE = "{{ app_base }}";</script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Floating Sidebar Nav -->
+        <button class="nav-toggle" id="nav-toggle"
+            onclick="document.getElementById('floating-nav').classList.toggle('nav-open')">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+        </button>
+        <nav class="floating-nav" id="floating-nav">
+            <a href="{{ url_for('index') }}" class="fnav-link active"><span class="fnav-icon">📬</span><span class="fnav-label">Console</span></a>
+            <a href="{{ url_for('get_email_page') }}" class="fnav-link"><span class="fnav-icon">📨</span><span class="fnav-label">Get
+                    Email</span></a>
+            <a href="{{ url_for('loop_delete_page') }}" class="fnav-link"><span class="fnav-icon">🔄</span><span class="fnav-label">Loop
+                    Delete</span></a>
+            <a href="{{ url_for('history_page') }}" class="fnav-link"><span class="fnav-icon">📋</span><span
+                    class="fnav-label">History</span></a>
+            {% if is_admin %}<a href="{{ url_for('admin_page') }}" class="fnav-link"><span class="fnav-icon">⚙️</span><span
+                    class="fnav-label">Admin</span></a>{% endif %}
+            <div class="fnav-divider"></div>
+            <a href="{{ url_for('logout') }}" class="fnav-link fnav-logout"><span class="fnav-icon">🚪</span><span
+                    class="fnav-label">Logout</span></a>
+        </nav>
+
+        <header class="header">
+            <div class="header-glow"></div>
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                            <polyline points="22,6 12,13 2,6" />
+                        </svg>
+                    </div>
+                    <h1>Mail <span class="gradient-text">Console</span></h1>
+                </div>
+                <p class="subtitle">Cek akun email secara massal dengan multi-threading</p>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <form id="checker-form" class="form-section">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label>
+                            <span class="label-icon">👤</span> Daftar Akun
+                            <span class="label-hint">Format: email:password (satu per baris)</span>
+                        </label>
+                        <div class="input-tabs">
+                            <button type="button" class="input-tab active" id="tab-text" onclick="switchTab('text')">✏️
+                                Ketik Manual</button>
+                            <button type="button" class="input-tab" id="tab-file" onclick="switchTab('file')">📁 Upload
+                                File .txt</button>
+                        </div>
+                        <div id="input-text-mode">
+                            <textarea id="accounts-input"
+                                placeholder="user@example.com:password123&#10;another@mail.com:pass456"
+                                rows="8"></textarea>
+                        </div>
+                        <div id="input-file-mode" class="hidden">
+                            <div class="file-upload-area" id="file-drop-area">
+                                <input type="file" id="accounts-file" accept=".txt" class="file-input-hidden">
+                                <div class="file-upload-label">
+                                    <span class="file-upload-icon">📄</span>
+                                    <span>Klik atau drag & drop file .txt</span>
+                                    <span class="file-upload-hint">File harus berisi email:password per baris</span>
+                                </div>
+                            </div>
+                            <div id="file-info" class="file-info hidden"></div>
+                        </div>
+                        <div class="input-meta"><span id="accounts-count" class="counter">0 akun terdeteksi</span></div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="senders-input">
+                            <span class="label-icon">📧</span> Target Sender
+                            <span class="label-hint">Kosongkan untuk default (booking, agoda, trip)</span>
+                        </label>
+                        <textarea id="senders-input"
+                            placeholder="Kosongkan untuk default: noreply@booking.com, rewards@booking.com, @agoda.com, @trip.com"
+                            rows="3"></textarea>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="keywords-input">
+                            <span class="label-icon">🔍</span> Keyword (Subject)
+                            <span class="label-hint">Kata kunci di subject (opsional jika sender diisi)</span>
+                        </label>
+                        <textarea id="keywords-input"
+                            placeholder="booking confirmation&#10;payment receipt&#10;verification code"
+                            rows="3"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="days-input"><span class="label-icon">📅</span> Jangka Waktu (hari)</label>
+                        <input type="number" id="days-input" value="365" min="1" max="3650">
+                        <span class="input-desc">Cek email dari X hari yang lalu</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="threads-input"><span class="label-icon">⚡</span> Jumlah Thread</label>
+                        <input type="number" id="threads-input" value="500" min="1" max="1000">
+                        <span class="input-desc">Semakin banyak = semakin cepat</span>
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <button type="submit" id="start-btn" class="btn-primary">
+                        <span class="btn-icon">🚀</span><span class="btn-text">Mulai Pengecekan</span>
+                    </button>
+                    <button type="button" id="stop-btn" class="btn-stop hidden">
+                        <span class="btn-icon">⏹️</span><span class="btn-text">Stop</span>
+                    </button>
+                </div>
+            </form>
+
+            <section id="progress-section" class="progress-section hidden">
+                <div class="section-header">
+                    <h2>📊 Progress</h2>
+                    <span id="progress-status" class="status-badge running">Sedang Berjalan</span>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar-wrapper">
+                        <div id="progress-bar" class="progress-bar" style="width:0%"></div>
+                    </div>
+                    <div class="progress-info">
+                        <span id="progress-percentage" class="progress-pct">0%</span>
+                        <span id="progress-detail" class="progress-detail">0 / 0 akun</span>
+                    </div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card live">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-info"><span class="stat-value" id="stat-live">0</span><span
+                                class="stat-label">Live</span></div>
+                    </div>
+                    <div class="stat-card noemail">
+                        <div class="stat-icon">📭</div>
+                        <div class="stat-info"><span class="stat-value" id="stat-noemail">0</span><span
+                                class="stat-label">No Email</span></div>
+                    </div>
+                    <div class="stat-card die">
+                        <div class="stat-icon">💀</div>
+                        <div class="stat-info"><span class="stat-value" id="stat-die">0</span><span
+                                class="stat-label">Die</span></div>
+                    </div>
+                    <div class="stat-card unreg">
+                        <div class="stat-icon">❓</div>
+                        <div class="stat-info"><span class="stat-value" id="stat-unreg">0</span><span
+                                class="stat-label">Unreg</span></div>
+                    </div>
+                    <div class="stat-card skipped">
+                        <div class="stat-icon">⏭️</div>
+                        <div class="stat-info"><span class="stat-value" id="stat-skipped">0</span><span
+                                class="stat-label">Skipped</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="live-section" class="live-section hidden">
+                <div class="section-header">
+                    <h2>🎯 Live Accounts</h2>
+                    <span id="live-counter" class="live-counter-badge">0</span>
+                </div>
+                <div id="live-list" class="live-list"></div>
+            </section>
+
+            <section id="results-section" class="results-section hidden">
+                <div class="section-header">
+                    <h2>📁 Download Hasil</h2>
+                </div>
+                <div class="download-grid">
+                    <a class="download-btn live disabled" data-type="live"><span class="dl-icon">✅</span><span
+                            class="dl-label">Live</span><span class="dl-ext">.txt</span></a>
+                    <a class="download-btn noemail disabled" data-type="noemail"><span class="dl-icon">📭</span><span
+                            class="dl-label">No Email</span><span class="dl-ext">.txt</span></a>
+                    <a class="download-btn die disabled" data-type="die"><span class="dl-icon">💀</span><span
+                            class="dl-label">Die</span><span class="dl-ext">.txt</span></a>
+                    <a class="download-btn unreg disabled" data-type="unreg"><span class="dl-icon">❓</span><span
+                            class="dl-label">Unreg</span><span class="dl-ext">.txt</span></a>
+                    <a class="download-btn domain_skipped disabled" data-type="domain_skipped"><span
+                            class="dl-icon">⏭️</span><span class="dl-label">Domain Skipped</span><span
+                            class="dl-ext">.txt</span></a>
+                </div>
+            </section>
+        </main>
+        <footer class="footer">
+            <p>Console</p>
+        </footer>
+    </div>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+
+</html>
