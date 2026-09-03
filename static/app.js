@@ -632,30 +632,26 @@
 
         modal.innerHTML =
             '<div class="ge-modal-backdrop"></div>' +
-            '<div class="ge-modal-container" style="max-width:1100px; display:flex; flex-direction:column; height:85vh;">' +
-            '<div class="ge-modal-header">' +
-            '<div class="ge-modal-title">' +
-            '<span class="ge-modal-subject">📂 Email Browser — ' + escapeHtml(emailAddr) + '</span>' +
-            '</div>' +
+            '<div class="eb-container">' +
+            '<div class="eb-header">' +
+            '<span>📂 Email Browser — ' + escapeHtml(emailAddr) + '</span>' +
             '<button class="ge-modal-close">&times;</button>' +
             '</div>' +
-            '<div class="ge-modal-body" style="flex:1; padding:0; display:flex; overflow:hidden;">' +
+            '<div class="eb-body">' +
             '<div class="eb-sidebar">' + folderHtml + '</div>' +
-            '<div class="eb-main" style="display:flex; flex-direction:column;">' +
+            '<div class="eb-middle">' +
             '<div class="eb-toolbar">' +
             '<button class="btn-primary eb-del-btn" disabled>🗑️ Hapus Terpilih (0)</button>' +
             '<span class="eb-status-text">Memuat...</span>' +
             '</div>' +
-            '<div class="eb-email-list-container" style="flex:1; overflow-y:auto; border-bottom:1px solid var(--border-color);">' +
             '<div class="eb-email-list"></div>' +
-            '</div>' +
-            '<div class="eb-viewer" style="flex:1; overflow-y:auto; display:none; padding:15px;"></div>' +
-            '<div class="eb-pagination" style="padding:10px; border-top:1px solid var(--border-color); display:flex; justify-content:center; gap:15px; align-items:center;">' +
+            '<div class="eb-pagination">' +
             '<button class="eb-prev-btn" disabled>◄ Prev</button>' +
             '<span class="eb-page-text">Page 1 / 1</span>' +
             '<button class="eb-next-btn" disabled>Next ►</button>' +
             '</div>' +
             '</div>' +
+            '<div class="eb-viewer"><div class="eb-viewer-placeholder">Klik email untuk melihat isi</div></div>' +
             '</div>' +
             '</div>';
 
@@ -677,8 +673,7 @@
         async function loadFolder(folder, page) {
             statusText.textContent = "⏳ Memuat email...";
             listContainer.innerHTML = "";
-            viewerContainer.style.display = "none";
-            viewerContainer.innerHTML = "";
+            viewerContainer.innerHTML = '<div class="eb-viewer-placeholder">Klik email untuk melihat isi</div>';
             delBtn.disabled = true;
             delBtn.innerHTML = '🗑️ Hapus Terpilih (0)';
             
@@ -748,7 +743,6 @@
         
         async function loadEmail(folder, uid) {
             viewerContainer.innerHTML = "<div style='text-align:center;padding:20px;'>⏳ Memuat pesan...</div>";
-            viewerContainer.style.display = "block";
             
             try {
                 var res = await fetch(APP_BASE+"/api/email-view", {
