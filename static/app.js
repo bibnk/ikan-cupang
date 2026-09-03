@@ -47,6 +47,14 @@
     var currentJobSenders = ""; // Senders used in current check job
     var currentJobKeywords = ""; // Keywords used in current check job
 
+    // Proxy state
+    var useProxy = false;
+    var proxyFileContent = "";
+    var proxyInputMode = "text";
+    var proxyInput = document.getElementById("proxy-input");
+    var proxyFileInput = document.getElementById("proxy-file");
+    var proxyCount = document.getElementById("proxy-count");
+
     // ---- Tab switching ----
     window.switchTab = function (mode) {
         currentInputMode = mode;
@@ -94,6 +102,76 @@
             fileInfo.textContent = "📄 " + file.name + " — " + n + " akun terdeteksi";
             fileInfo.classList.remove("hidden");
             updateAccountCount();
+        };
+        reader.readAsText(file);
+    }
+
+    // ---- Proxy toggle & input ----
+    window.toggleProxy = function (on) {
+        useProxy = on;
+        document.getElementById("proxy-off").classList.toggle("active", !on);
+        document.getElementById("proxy-on").classList.toggle("active", on);
+        document.getElementById("proxy-input-area").classList.toggle("hidden", !on);
+        updateProxyCount();
+    };
+
+    window.switchProxyTab = function (mode) {
+        proxyInputMode = mode;
+        document.getElementById("proxy-tab-text").classList.toggle("active", mode === "text");
+        document.getElementById("proxy-tab-file").classList.toggle("active", mode === "file");
+        document.getElementById("proxy-text-mode").classList.toggle("hidden", mode !== "text");
+        document.getElementById("proxy-file-mode").classList.toggle("hidden", mode !== "file");
+        updateProxyCount();
+    };
+
+    function countProxies(text) {
+        return text.trim().split("\n").filter(function (line) {
+            line = line.trim();
+            return line && !line.startsWith("#") && (line.includes(":") || line.includes("@"));
+        }).length;
+    }
+
+    function updateProxyCount() {
+        var text = proxyInputMode === "file" ? proxyFileContent : (proxyInput ? proxyInput.value : "");
+        var n = countProxies(text);
+        if (proxyCount) proxyCount.textContent = n + " proxy terdeteksi";
+    }
+
+    if (proxyInput) {
+        proxyInput.addEventListener("input", updateProxyCount);
+    }
+
+    // Proxy file upload
+    if (proxyFileInput) {
+        proxyFileInput.addEventListener("change", function () {
+            handleProxyFile(this.files[0]);
+        });
+    }
+
+    var proxyDropArea = document.getElementById("proxy-drop-area");
+    if (proxyDropArea) {
+        proxyDropArea.addEventListener("click", function () { proxyFileInput.click(); });
+        proxyDropArea.addEventListener("dragover", function (e) { e.preventDefault(); proxyDropArea.classList.add("dragover"); });
+        proxyDropArea.addEventListener("dragleave", function () { proxyDropArea.classList.remove("dragover"); });
+        proxyDropArea.addEventListener("drop", function (e) {
+            e.preventDefault();
+            proxyDropArea.classList.remove("dragover");
+            if (e.dataTransfer.files.length > 0) handleProxyFile(e.dataTransfer.files[0]);
+        });
+    }
+
+    function handleProxyFile(file) {
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            proxyFileContent = e.target.result;
+            var n = countProxies(proxyFileContent);
+            var info = document.getElementById("proxy-file-info");
+            if (info) {
+                info.textContent = "📄 " + file.name + " — " + n + " proxy terdeteksi";
+                info.classList.remove("hidden");
+            }
+            updateProxyCount();
         };
         reader.readAsText(file);
     }
@@ -148,6 +226,7 @@
         var keywords = keywordsInput.value.trim();
         var days = parseInt(daysInput.value, 10) || 365;
         var threads = parseInt(threadsInput.value, 10) || 500;
+        var proxies = useProxy ? (proxyInputMode === "file" ? proxyFileContent : (proxyInput ? proxyInput.value.trim() : "")) : "";
 
         if (!accounts || countAccounts(accounts) === 0) {
             return alert("Masukkan daftar akun atau upload file .txt!");
@@ -171,6 +250,7 @@
                     accounts: accounts,
                     senders: senders,
                     keywords: keywords,
+                    proxies: proxies,
                     search_days: days,
                     max_threads: threads,
                 }),

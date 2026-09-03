@@ -105,6 +105,37 @@
                             rows="3"></textarea>
                     </div>
 
+                    <div class="form-group full-width">
+                        <label>
+                            <span class="label-icon">🌐</span> Proxy
+                            <span class="label-hint">Opsional, rotasi otomatis per akun</span>
+                        </label>
+                        <div class="proxy-toggle">
+                            <button type="button" class="proxy-toggle-btn active" id="proxy-off" onclick="toggleProxy(false)">🚫 No Proxy</button>
+                            <button type="button" class="proxy-toggle-btn" id="proxy-on" onclick="toggleProxy(true)">🌐 Use Proxy</button>
+                        </div>
+                        <div id="proxy-input-area" class="hidden">
+                            <div class="input-tabs" style="margin-top:10px;">
+                                <button type="button" class="input-tab active" id="proxy-tab-text" onclick="switchProxyTab('text')">✏️ Paste</button>
+                                <button type="button" class="input-tab" id="proxy-tab-file" onclick="switchProxyTab('file')">📁 Upload .txt</button>
+                            </div>
+                            <div id="proxy-text-mode">
+                                <textarea id="proxy-input" placeholder="user:pass@host:port&#10;host:port:user:pass&#10;host:port" rows="5"></textarea>
+                            </div>
+                            <div id="proxy-file-mode" class="hidden">
+                                <div class="file-upload-area" id="proxy-drop-area">
+                                    <input type="file" id="proxy-file" accept=".txt" class="file-input-hidden">
+                                    <div class="file-upload-label">
+                                        <span class="file-upload-icon">📄</span>
+                                        <span>Klik atau drag & drop file proxy .txt</span>
+                                    </div>
+                                </div>
+                                <div id="proxy-file-info" class="file-info hidden"></div>
+                            </div>
+                            <div class="input-meta"><span id="proxy-count" class="counter">0 proxy terdeteksi</span></div>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label for="days-input"><span class="label-icon">📅</span> Jangka Waktu (hari)</label>
                         <input type="number" id="days-input" value="365" min="1" max="3650">

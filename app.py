@@ -15,6 +15,7 @@ from imap_engine import (
     ImapChecker,
     parse_accounts,
     parse_senders,
+    parse_proxies,
     _load_skip_domains,
     _save_skip_domains,
     _validate_skip_entries,
@@ -298,6 +299,7 @@ def start_check():
     accounts_text = data.get("accounts", "").strip()
     senders_text = data.get("senders", "").strip()
     keywords_text = data.get("keywords", "").strip()
+    proxies_text = data.get("proxies", "").strip()
     search_days = int(data.get("search_days", 365))
     max_threads = int(data.get("max_threads", 20))
 
@@ -316,6 +318,7 @@ def start_check():
 
     senders = parse_senders(senders_text) if senders_text else []
     keywords = [k.strip() for k in keywords_text.splitlines() if k.strip()] if keywords_text else []
+    proxy_list = parse_proxies(proxies_text) if proxies_text else []
 
     if not accounts:
         return jsonify({"error": "Tidak ditemukan akun valid. Format: email:password"}), 400
@@ -335,6 +338,7 @@ def start_check():
         keywords=keywords,
         search_days=search_days,
         max_threads=max_threads,
+        proxy_list=proxy_list,
     )
 
     jobs[job_id] = {
@@ -347,6 +351,7 @@ def start_check():
             "total_accounts": len(accounts),
             "total_senders": len(senders),
             "total_keywords": len(keywords),
+            "total_proxies": len(proxy_list),
             "senders_text": senders_text[:100],
             "keywords_text": keywords_text[:100],
         },
@@ -358,6 +363,7 @@ def start_check():
         "total_accounts": len(accounts),
         "total_senders": len(senders),
         "total_keywords": len(keywords),
+        "total_proxies": len(proxy_list),
         "duplicates_removed": duplicates_removed,
     })
 

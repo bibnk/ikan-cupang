@@ -1919,6 +1919,43 @@ input[type="number"] {
     border-color: rgba(239, 68, 68, 0.5);
 }
 
+/* ---- Proxy Toggle ---- */
+.proxy-toggle {
+    display: flex;
+    gap: 0;
+    margin-top: 8px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    width: fit-content;
+}
+
+.proxy-toggle-btn {
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    border: none;
+    background: var(--bg-input);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.proxy-toggle-btn:first-child {
+    border-right: 1px solid var(--border-color);
+}
+
+.proxy-toggle-btn.active {
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--accent-primary);
+}
+
+.proxy-toggle-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+}
+
 /* ---- Sender Picker Modal ---- */
 .sender-picker-options {
     display: flex;
