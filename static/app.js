@@ -44,6 +44,8 @@
     var renderedLiveCount = 0;
     var fileContent = "";  // Content from uploaded file
     var currentInputMode = "text"; // "text" or "file"
+    var currentJobSenders = ""; // Senders used in current check job
+    var currentJobKeywords = ""; // Keywords used in current check job
 
     // ---- Tab switching ----
     window.switchTab = function (mode) {
@@ -185,6 +187,8 @@
             currentJobId = data.job_id;
             saveJobId(currentJobId);
             renderedLiveCount = 0;
+            currentJobSenders = senders;
+            currentJobKeywords = keywords;
 
             // Feedback dedup: show banner if duplicates were dropped during parse.
             if (data.duplicates_removed && data.duplicates_removed > 0) {
@@ -330,12 +334,149 @@
         });
     }
 
-    // ---- Live Get Email (modal) ----
+    // ---- Sender Picker Modal ----
+    function showSenderPicker(emailAddr, password, btn) {
+        var old = document.getElementById("sender-picker-modal");
+        if (old) old.remove();
+
+        var hasJobSenders = !!(currentJobSenders || currentJobKeywords);
+
+        var modal = document.createElement("div");
+        modal.id = "sender-picker-modal";
+        modal.className = "ge-modal";
+
+        var jobSenderPreview = "";
+        if (currentJobSenders) {
+            jobSenderPreview = currentJobSenders.split("\n").filter(function(s){return s.trim();}).slice(0, 3).join(", ");
+            if (currentJobSenders.split("\n").filter(function(s){return s.trim();}).length > 3) jobSenderPreview += "...";
+        }
+        if (currentJobKeywords) {
+            var kwPreview = currentJobKeywords.split("\n").filter(function(s){return s.trim();}).slice(0, 2).join(", ");
+            jobSenderPreview += (jobSenderPreview ? " + keyword: " : "keyword: ") + kwPreview;
+        }
+
+        var defaultPreview = DEFAULT_SENDERS.split("\n").filter(function(s){return s.trim();}).slice(0, 3).join(", ") + "...";
+
+        modal.innerHTML =
+            '<div class="ge-modal-backdrop"></div>' +
+            '<div class="ge-modal-container" style="max-width:520px;">' +
+            '<div class="ge-modal-header">' +
+            '<div class="ge-modal-title">' +
+            '<span class="ge-modal-subject">📨 Get Email — ' + escapeHtml(emailAddr) + '</span>' +
+            '<span class="ge-modal-info">Pilih sender untuk mengambil email</span>' +
+            '</div>' +
+            '<button class="ge-modal-close">&times;</button>' +
+            '</div>' +
+            '<div class="ge-modal-body" style="padding:20px;">' +
+            '<div class="sender-picker-options">' +
+
+            // Option 1: Same as check IMAP
+            (hasJobSenders ?
+            '<div class="sender-picker-opt" data-choice="job">' +
+            '<div class="sender-picker-radio"><span class="radio-dot"></span></div>' +
+            '<div class="sender-picker-content">' +
+            '<div class="sender-picker-label">📋 Sama dengan Check IMAP</div>' +
+            '<div class="sender-picker-desc">' + escapeHtml(jobSenderPreview) + '</div>' +
+            '</div></div>' : '') +
+
+            // Option 2: Default
+            '<div class="sender-picker-opt" data-choice="default">' +
+            '<div class="sender-picker-radio"><span class="radio-dot"></span></div>' +
+            '<div class="sender-picker-content">' +
+            '<div class="sender-picker-label">⭐ Default Sender</div>' +
+            '<div class="sender-picker-desc">' + escapeHtml(defaultPreview) + '</div>' +
+            '</div></div>' +
+
+            // Option 3: Custom
+            '<div class="sender-picker-opt" data-choice="custom">' +
+            '<div class="sender-picker-radio"><span class="radio-dot"></span></div>' +
+            '<div class="sender-picker-content">' +
+            '<div class="sender-picker-label">✏️ Custom</div>' +
+            '<div class="sender-picker-desc">Masukkan sender/keyword sendiri</div>' +
+            '</div></div>' +
+
+            // Custom input area (hidden by default)
+            '<div id="sender-picker-custom-area" class="sender-picker-custom-area" style="display:none;">' +
+            '<label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px;">Sender (satu per baris)</label>' +
+            '<textarea id="sender-picker-senders" rows="3" placeholder="noreply@booking.com&#10;@agoda.com" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:13px;resize:vertical;"></textarea>' +
+            '<label style="font-size:13px;color:#94a3b8;display:block;margin:10px 0 6px;">Keyword / Subject (opsional)</label>' +
+            '<textarea id="sender-picker-keywords" rows="2" placeholder="booking confirmation" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:13px;resize:vertical;"></textarea>' +
+            '</div>' +
+
+            '</div>' +
+            '<div style="margin-top:18px;text-align:right;">' +
+            '<button id="sender-picker-cancel" class="btn-stop" style="margin-right:10px;padding:8px 20px;font-size:14px;">Batal</button>' +
+            '<button id="sender-picker-go" class="btn-primary" style="padding:8px 20px;font-size:14px;" disabled>' +
+            '<span class="btn-icon">📨</span><span class="btn-text">Ambil Email</span>' +
+            '</button>' +
+            '</div>' +
+            '</div>' +
+            '</div>';
+
+        document.body.appendChild(modal);
+        document.body.style.overflow = "hidden";
+
+        var selectedChoice = null;
+        var goBtn = modal.querySelector("#sender-picker-go");
+        var customArea = modal.querySelector("#sender-picker-custom-area");
+
+        // Option click handlers
+        modal.querySelectorAll(".sender-picker-opt").forEach(function(opt) {
+            opt.addEventListener("click", function() {
+                modal.querySelectorAll(".sender-picker-opt").forEach(function(o) { o.classList.remove("selected"); });
+                this.classList.add("selected");
+                selectedChoice = this.dataset.choice;
+                goBtn.disabled = false;
+
+                if (selectedChoice === "custom") {
+                    customArea.style.display = "block";
+                } else {
+                    customArea.style.display = "none";
+                }
+            });
+        });
+
+        // Close handlers
+        function closePicker() {
+            modal.remove();
+            document.body.style.overflow = "";
+        }
+        modal.querySelector(".ge-modal-close").addEventListener("click", closePicker);
+        modal.querySelector(".ge-modal-backdrop").addEventListener("click", closePicker);
+        modal.querySelector("#sender-picker-cancel").addEventListener("click", closePicker);
+
+        // Go button
+        goBtn.addEventListener("click", function() {
+            var senders = "";
+            var keywords = "";
+
+            if (selectedChoice === "job") {
+                senders = currentJobSenders;
+                keywords = currentJobKeywords;
+            } else if (selectedChoice === "default") {
+                senders = DEFAULT_SENDERS;
+            } else if (selectedChoice === "custom") {
+                senders = modal.querySelector("#sender-picker-senders").value.trim();
+                keywords = modal.querySelector("#sender-picker-keywords").value.trim();
+                if (!senders && !keywords) {
+                    alert("Isi minimal salah satu: sender atau keyword!");
+                    return;
+                }
+            }
+
+            closePicker();
+            doLiveGetEmail(emailAddr, password, senders, keywords, btn);
+        });
+    }
+
+    // ---- Live Get Email (with sender picker) ----
     async function handleLiveGetEmail(emailAddr, password, btn) {
+        showSenderPicker(emailAddr, password, btn);
+    }
+
+    async function doLiveGetEmail(emailAddr, password, senders, keywords, btn) {
         btn.disabled = true;
         btn.textContent = "⏳";
-
-        var senders = DEFAULT_SENDERS;
 
         try {
             var res = await fetch(APP_BASE+"/api/get-email", {
@@ -345,7 +486,7 @@
                     email: emailAddr,
                     password: password,
                     senders: senders,
-                    keywords: "",
+                    keywords: keywords,
                     search_days: 365,
                 }),
             });
@@ -359,7 +500,7 @@
             }
 
             if (!data.emails || data.emails.length === 0) {
-                alert("📭 Tidak ada email ditemukan dari sender default.");
+                alert("📭 Tidak ada email ditemukan.");
                 return;
             }
 
