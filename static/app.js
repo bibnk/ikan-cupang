@@ -383,14 +383,19 @@
         var credential = item.account + ":" + (item.password || "");
         var emailsHtml = "";
         if (item.emails && item.emails.length > 0) {
+            var showLimit = 3;
             emailsHtml = '<div class="live-item-emails">';
-            item.emails.forEach(function (em) {
-                emailsHtml += '<div class="live-item-email">' +
+            item.emails.forEach(function (em, idx) {
+                var hiddenClass = idx >= showLimit ? ' style="display:none;" data-extra="1"' : '';
+                emailsHtml += '<div class="live-item-email"' + hiddenClass + '>' +
                     '<span class="date">' + escapeHtml(em.date || '') + '</span>' +
                     '<span class="from">' + escapeHtml(em.from) + '</span>' +
                     '<span class="subject">' + escapeHtml(em.subject) + '</span>' +
                     '</div>';
             });
+            if (item.emails.length > showLimit) {
+                emailsHtml += '<button class="live-show-more-btn" data-expanded="0">▼ Show More (' + (item.emails.length - showLimit) + ' lainnya)</button>';
+            }
             emailsHtml += '</div>';
         }
         div.innerHTML =
@@ -416,6 +421,18 @@
         div.querySelector(".live-del-btn").addEventListener("click", function () {
             handleLiveDeleteEmail(this.dataset.email, this.dataset.pass, this);
         });
+        var showMoreBtn = div.querySelector(".live-show-more-btn");
+        if (showMoreBtn) {
+            showMoreBtn.addEventListener("click", function () {
+                var expanded = this.getAttribute("data-expanded") === "1";
+                var extras = this.parentNode.querySelectorAll('[data-extra="1"]');
+                extras.forEach(function (el) { el.style.display = expanded ? "none" : ""; });
+                this.setAttribute("data-expanded", expanded ? "0" : "1");
+                this.textContent = expanded
+                    ? "▼ Show More (" + extras.length + " lainnya)"
+                    : "▲ Show Less";
+            });
+        }
     }
 
     // ---- Sender Picker Modal ----
@@ -581,6 +598,20 @@
         }
     }
 
+    function getFolderIcon(name) {
+        var n = name.toLowerCase();
+        if (n === 'inbox') return '📥';
+        if (n.indexOf('sent') !== -1) return '📤';
+        if (n.indexOf('draft') !== -1) return '📝';
+        if (n.indexOf('trash') !== -1 || n.indexOf('deleted') !== -1 || n.indexOf('bin') !== -1) return '🗑️';
+        if (n.indexOf('spam') !== -1 || n.indexOf('junk') !== -1) return '⚠️';
+        if (n.indexOf('archive') !== -1) return '📦';
+        if (n.indexOf('starred') !== -1 || n.indexOf('flagged') !== -1) return '⭐';
+        if (n.indexOf('important') !== -1) return '❗';
+        if (n.indexOf('all') !== -1) return '📬';
+        return '📁';
+    }
+
     function showEmailBrowser(emailAddr, password, folders) {
         var old = document.getElementById("email-browser-modal");
         if (old) old.remove();
@@ -592,8 +623,9 @@
         var folderHtml = '';
         folders.forEach(function(f, idx) {
             var activeClass = idx === 0 ? " active" : "";
+            var icon = getFolderIcon(f.name);
             folderHtml += '<div class="eb-folder-item' + activeClass + '" data-folder="' + escapeHtml(f.name) + '">' +
-                '<span>📁 ' + escapeHtml(f.name) + '</span>' +
+                '<span>' + icon + ' ' + escapeHtml(f.name) + '</span>' +
                 '<span class="eb-folder-count">(' + (f.count || 0) + ')</span>' +
                 '</div>';
         });

@@ -1919,6 +1919,27 @@ input[type="number"] {
     border-color: rgba(239, 68, 68, 0.5);
 }
 
+/* ---- Show More Button (Live Items) ---- */
+.live-show-more-btn {
+    display: block;
+    width: 100%;
+    padding: 6px 10px;
+    margin-top: 4px;
+    font-size: 12px;
+    font-family: 'Inter', sans-serif;
+    color: var(--accent-primary);
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px dashed rgba(99, 102, 241, 0.3);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.live-show-more-btn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--accent-primary);
+}
+
 /* ---- Proxy Toggle ---- */
 .proxy-toggle {
     display: flex;
@@ -2573,8 +2594,10 @@ input[type="number"] {
     background: var(--color-die-bg);
     color: var(--color-die);
     border: 1px solid rgba(239, 68, 68, 0.2);
-}/ *   E m a i l   B r o w s e r   C S S   * /  
- /* ---- Email Browser Modal & UI ---- */
+}
+
+
+/* ---- Email Browser Modal & UI ---- */
 .eb-sidebar {
     width: 220px;
     background: var(--bg-card);
