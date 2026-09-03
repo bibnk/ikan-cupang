@@ -746,7 +746,7 @@
         if (!btn || !currentJobId) return;
         if (enable) {
             btn.classList.remove("disabled");
-            btn.href = "/api/download/" + currentJobId + "/" + type;
+            btn.href = APP_BASE + "/api/download/" + currentJobId + "/" + type;
             btn.setAttribute("download", type + "_" + currentJobId + ".txt");
         } else {
             btn.classList.add("disabled");
