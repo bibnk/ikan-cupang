@@ -2573,4 +2573,103 @@ input[type="number"] {
     background: var(--color-die-bg);
     color: var(--color-die);
     border: 1px solid rgba(239, 68, 68, 0.2);
+}/ *   E m a i l   B r o w s e r   C S S   * /  
+ /* ---- Email Browser Modal & UI ---- */
+.eb-sidebar {
+    width: 220px;
+    background: var(--bg-card);
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+.eb-folder-item {
+    padding: 12px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+    color: var(--text-muted);
+    font-size: 14px;
+}
+.eb-folder-item:hover {
+    background: rgba(255,255,255,0.05);
+}
+.eb-folder-item.active {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--accent-primary);
+    border-left: 3px solid var(--accent-primary);
+}
+.eb-main {
+    flex: 1;
+    background: var(--bg-card);
+}
+.eb-toolbar {
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.eb-email-row {
+    display: flex;
+    padding: 10px 15px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    cursor: pointer;
+}
+.eb-email-row:hover {
+    background: rgba(255,255,255,0.05);
+}
+.eb-row-checkbox {
+    margin-right: 15px;
+    display: flex;
+    align-items: center;
+}
+.eb-row-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+}
+.eb-row-from {
+    color: var(--text-primary);
+}
+.eb-row-subject {
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.eb-row-date {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+.eb-viewer-body img {
+    max-width: 100%;
+}
+.live-modal-toolbar {
+    margin-left: auto;
+    margin-right: 15px;
+}
+.live-modal-checkbox {
+    margin-right: 10px;
+}
+.live-modal-email-header {
+    display: flex;
+    align-items: center;
+}
+.eb-checkbox {
+    cursor: pointer;
+}
+@media (max-width: 768px) {
+    .ge-modal-container[style*='display:flex'] .ge-modal-body {
+        flex-direction: column;
+    }
+    .eb-sidebar {
+        width: 100%;
+        height: 120px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
 }

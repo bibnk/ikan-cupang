@@ -515,12 +515,241 @@ def fetch_emails(email_address, password, senders=None, keywords=None, search_da
         return {"success": False, "error": f"Error saat mengambil email: {e}", "emails": []}
 
 
-def delete_email(email_address, password, uid_to_delete):
+def list_folders(email_address, password):
+    """List all IMAP folders with email counts."""
+    if not EMAIL_REGEX.match(email_address):
+        return {"success": False, "error": "Format email tidak valid.", "folders": []}
+
+    mail, error = connect_imap(email_address, password)
+    if not mail:
+        return {"success": False, "error": error, "folders": []}
+
+    try:
+        status, folder_list = mail.list()
+        if status != 'OK':
+            mail.logout()
+            return {"success": False, "error": "Gagal mengambil daftar folder.", "folders": []}
+
+        folders = []
+        for item in folder_list:
+            if not item:
+                continue
+            decoded = item.decode() if isinstance(item, bytes) else str(item)
+            # Parse LIST response: (\HasNoChildren) "/" "INBOX"
+            match = re.match(r'\(([^)]*)\)\s+"([^"]*?)"\s+"?(.+?)"?\s*$', decoded)
+            if not match:
+                match = re.match(r'\(([^)]*)\)\s+(\S+)\s+"?(.+?)"?\s*$', decoded)
+            if not match:
+                continue
+
+            flags = match.group(1)
+            folder_name = match.group(3).strip().strip('"')
+
+            # Skip \Noselect folders
+            if '\\Noselect' in flags:
+                continue
+
+            # Get message count
+            try:
+                st, data = mail.select(folder_name, readonly=True)
+                count = int(data[0]) if st == 'OK' else 0
+            except Exception:
+                count = 0
+
+            folders.append({"name": folder_name, "count": count})
+
+        mail.logout()
+        return {"success": True, "folders": folders}
+
+    except Exception as e:
+        try:
+            mail.logout()
+        except Exception:
+            pass
+        return {"success": False, "error": f"Error: {e}", "folders": []}
+
+
+def list_folder_emails(email_address, password, folder="INBOX", page=1, per_page=30):
+    """List emails in a folder with pagination (newest first). Headers only."""
+    empty = {"success": False, "emails": [], "total": 0, "page": 1, "pages": 0}
+
+    if not EMAIL_REGEX.match(email_address):
+        return {**empty, "error": "Format email tidak valid."}
+
+    mail, error = connect_imap(email_address, password)
+    if not mail:
+        return {**empty, "error": error}
+
+    try:
+        status, data = mail.select(folder, readonly=True)
+        if status != 'OK':
+            mail.logout()
+            return {**empty, "error": f"Gagal membuka folder '{folder}'."}
+
+        status, messages = mail.uid('SEARCH', None, 'ALL')
+        if status != 'OK' or not messages[0]:
+            mail.logout()
+            return {"success": True, "folder": folder, "emails": [], "total": 0, "page": 1, "pages": 0}
+
+        all_uids = messages[0].split()
+        total = len(all_uids)
+        all_uids.reverse()  # newest first (higher UIDs = newer)
+
+        pages = max(1, (total + per_page - 1) // per_page)
+        page = max(1, min(page, pages))
+        start_idx = (page - 1) * per_page
+        page_uids = all_uids[start_idx:start_idx + per_page]
+
+        if not page_uids:
+            mail.logout()
+            return {"success": True, "folder": folder, "emails": [], "total": total, "page": page, "pages": pages}
+
+        emails = []
+        for uid in page_uids:
+            try:
+                st, fetch_data = mail.uid('FETCH', uid, '(FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])')
+                if st != 'OK' or not fetch_data:
+                    continue
+
+                for part in fetch_data:
+                    if isinstance(part, tuple) and len(part) >= 2:
+                        meta_line = part[0].decode() if isinstance(part[0], bytes) else str(part[0])
+                        header_bytes = part[1]
+
+                        flags_match = re.search(r'FLAGS\s+\(([^)]*)\)', meta_line)
+                        flags = flags_match.group(1) if flags_match else ""
+
+                        date_match = re.search(r'INTERNALDATE\s+"([^"]+)"', meta_line)
+                        internal_date = date_match.group(1) if date_match else ""
+
+                        msg = email.message_from_bytes(header_bytes)
+                        subject = decode_mime_words(msg.get("Subject", ""))
+                        from_header = decode_mime_words(msg.get("From", ""))
+                        _name, from_addr = email.utils.parseaddr(from_header)
+
+                        formatted_date = internal_date
+                        if internal_date:
+                            try:
+                                dt = email.utils.parsedate_to_datetime(internal_date)
+                                formatted_date = dt.strftime('%d %b %Y, %H:%M')
+                            except Exception:
+                                pass
+
+                        uid_str = uid.decode() if isinstance(uid, bytes) else str(uid)
+
+                        emails.append({
+                            "uid": uid_str,
+                            "from": from_addr or from_header,
+                            "from_name": _name or "",
+                            "subject": subject or "(Tanpa subjek)",
+                            "date": formatted_date,
+                            "seen": '\\Seen' in flags,
+                        })
+                        break
+            except Exception:
+                continue
+
+        mail.logout()
+        return {"success": True, "folder": folder, "emails": emails, "total": total, "page": page, "pages": pages}
+
+    except Exception as e:
+        try:
+            mail.logout()
+        except Exception:
+            pass
+        return {**empty, "error": f"Error: {e}"}
+
+
+def get_single_email(email_address, password, folder="INBOX", uid=""):
+    """Get full email content by UID from a specific folder."""
+    if not EMAIL_REGEX.match(email_address):
+        return {"success": False, "error": "Format email tidak valid."}
+
+    mail, error = connect_imap(email_address, password)
+    if not mail:
+        return {"success": False, "error": error}
+
+    try:
+        status, _ = mail.select(folder, readonly=True)
+        if status != 'OK':
+            mail.logout()
+            return {"success": False, "error": f"Gagal membuka folder '{folder}'."}
+
+        uid_bytes = uid.encode() if isinstance(uid, str) else uid
+        status, msg_data = mail.uid('FETCH', uid_bytes, '(RFC822)')
+
+        if status != 'OK' or not msg_data or not isinstance(msg_data[0], tuple):
+            mail.logout()
+            return {"success": False, "error": "Email tidak ditemukan."}
+
+        msg = email.message_from_bytes(msg_data[0][1])
+
+        subject = decode_mime_words(msg.get("Subject", ""))
+        from_header = decode_mime_words(msg.get("From", ""))
+        to_header = decode_mime_words(msg.get("To", ""))
+        cc_header = decode_mime_words(msg.get("Cc", ""))
+        date_header = decode_mime_words(msg.get("Date", ""))
+        _name, from_addr = email.utils.parseaddr(from_header)
+
+        try:
+            dt_obj = email.utils.parsedate_to_datetime(date_header)
+            formatted_date = dt_obj.strftime('%d %b %Y, %H:%M')
+        except Exception:
+            formatted_date = date_header
+
+        body_html, body_text, links = get_email_body_html(msg)
+
+        # Attachments info
+        attachments = []
+        if msg.is_multipart():
+            for part in msg.walk():
+                cdisp = (part.get('Content-Disposition') or '').lower()
+                if 'attachment' in cdisp:
+                    filename = part.get_filename()
+                    if filename:
+                        filename = decode_mime_words(filename)
+                    payload = part.get_payload(decode=True)
+                    size = len(payload) if payload else 0
+                    attachments.append({
+                        "filename": filename or "unnamed",
+                        "size": size,
+                        "content_type": part.get_content_type(),
+                    })
+
+        links_data = [{"label": l if l and l != u else "", "url": u} for l, u in links]
+
+        mail.logout()
+        return {
+            "success": True,
+            "email": {
+                "uid": uid,
+                "subject": subject or "(Tanpa subjek)",
+                "from": from_addr or from_header,
+                "from_name": _name or "",
+                "to": to_header,
+                "cc": cc_header,
+                "date": formatted_date,
+                "body_html": body_html,
+                "body_text": body_text[:500] if body_text else "",
+                "links": links_data,
+                "attachments": attachments,
+            }
+        }
+
+    except Exception as e:
+        try:
+            mail.logout()
+        except Exception:
+            pass
+        return {"success": False, "error": f"Error: {e}"}
+
+
+def delete_email(email_address, password, uid_to_delete, folder="INBOX"):
     r"""
     Permanently delete a specific email by UID.
     Steps:
     1. Connect to IMAP
-    2. Select INBOX (read-write)
+    2. Select folder (read-write)
     3. Mark email as \Deleted and EXPUNGE
     4. Search all Trash-like folders and permanently delete there too
     """
@@ -535,13 +764,13 @@ def delete_email(email_address, password, uid_to_delete):
     uid_bytes = uid_to_delete.encode() if isinstance(uid_to_delete, str) else uid_to_delete
 
     try:
-        # Step 1: Delete from INBOX
-        mail.select("INBOX")
+        # Step 1: Delete from specified folder
+        mail.select(folder)
         # Fetch to verify UID exists
         status, data = mail.uid('FETCH', uid_bytes, '(FLAGS)')
         if status != 'OK' or not data or data[0] is None:
             mail.logout()
-            return {"success": False, "error": "Email tidak ditemukan di INBOX."}
+            return {"success": False, "error": f"Email tidak ditemukan di {folder}."}
 
         # Mark as deleted and expunge
         mail.uid('STORE', uid_bytes, '+FLAGS', '(\\Deleted)')

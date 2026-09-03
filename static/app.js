@@ -400,6 +400,7 @@
             '<span class="live-item-count">' + item.email_count + ' email</span>' +
             '<div class="live-item-actions">' +
             '<button class="live-action-btn live-get-btn" data-email="' + escapeHtml(item.account) + '" data-pass="' + escapeHtml(item.password || '') + '">📨</button>' +
+            '<button class="live-action-btn live-browse-btn" data-email="' + escapeHtml(item.account) + '" data-pass="' + escapeHtml(item.password || '') + '">📂</button>' +
             '<button class="live-action-btn live-del-btn" data-email="' + escapeHtml(item.account) + '" data-pass="' + escapeHtml(item.password || '') + '">🗑️</button>' +
             '</div>' +
             '</div>' + emailsHtml;
@@ -408,6 +409,9 @@
         // Attach handlers
         div.querySelector(".live-get-btn").addEventListener("click", function () {
             handleLiveGetEmail(this.dataset.email, this.dataset.pass, this);
+        });
+        div.querySelector(".live-browse-btn").addEventListener("click", function () {
+            handleBrowseEmail(this.dataset.email, this.dataset.pass, this);
         });
         div.querySelector(".live-del-btn").addEventListener("click", function () {
             handleLiveDeleteEmail(this.dataset.email, this.dataset.pass, this);
@@ -548,6 +552,274 @@
             doLiveGetEmail(emailAddr, password, senders, keywords, btn);
         });
     }
+    // ---- Email Browser Feature ----
+    async function handleBrowseEmail(emailAddr, password, btn) {
+        var oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = "⏳";
+        
+        try {
+            var res = await fetch(APP_BASE+"/api/email-folders", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: emailAddr, password: password })
+            });
+            var data = await res.json();
+            btn.disabled = false;
+            btn.textContent = oldText;
+            
+            if (!data.success) {
+                alert("❌ " + (data.error || "Gagal mendapatkan folder"));
+                return;
+            }
+            
+            showEmailBrowser(emailAddr, password, data.folders);
+        } catch (err) {
+            btn.disabled = false;
+            btn.textContent = oldText;
+            alert("❌ Error: " + err.message);
+        }
+    }
+
+    function showEmailBrowser(emailAddr, password, folders) {
+        var old = document.getElementById("email-browser-modal");
+        if (old) old.remove();
+
+        var modal = document.createElement("div");
+        modal.id = "email-browser-modal";
+        modal.className = "ge-modal";
+
+        var folderHtml = '';
+        folders.forEach(function(f, idx) {
+            var activeClass = idx === 0 ? " active" : "";
+            folderHtml += '<div class="eb-folder-item' + activeClass + '" data-folder="' + escapeHtml(f.name) + '">' +
+                '<span>📁 ' + escapeHtml(f.name) + '</span>' +
+                '<span class="eb-folder-count">(' + (f.count || 0) + ')</span>' +
+                '</div>';
+        });
+
+        modal.innerHTML =
+            '<div class="ge-modal-backdrop"></div>' +
+            '<div class="ge-modal-container" style="max-width:1100px; display:flex; flex-direction:column; height:85vh;">' +
+            '<div class="ge-modal-header">' +
+            '<div class="ge-modal-title">' +
+            '<span class="ge-modal-subject">📂 Email Browser — ' + escapeHtml(emailAddr) + '</span>' +
+            '</div>' +
+            '<button class="ge-modal-close">&times;</button>' +
+            '</div>' +
+            '<div class="ge-modal-body" style="flex:1; padding:0; display:flex; overflow:hidden;">' +
+            '<div class="eb-sidebar">' + folderHtml + '</div>' +
+            '<div class="eb-main" style="display:flex; flex-direction:column;">' +
+            '<div class="eb-toolbar">' +
+            '<button class="btn-primary eb-del-btn" disabled>🗑️ Hapus Terpilih (0)</button>' +
+            '<span class="eb-status-text">Memuat...</span>' +
+            '</div>' +
+            '<div class="eb-email-list-container" style="flex:1; overflow-y:auto; border-bottom:1px solid var(--border-color);">' +
+            '<div class="eb-email-list"></div>' +
+            '</div>' +
+            '<div class="eb-viewer" style="flex:1; overflow-y:auto; display:none; padding:15px;"></div>' +
+            '<div class="eb-pagination" style="padding:10px; border-top:1px solid var(--border-color); display:flex; justify-content:center; gap:15px; align-items:center;">' +
+            '<button class="eb-prev-btn" disabled>◄ Prev</button>' +
+            '<span class="eb-page-text">Page 1 / 1</span>' +
+            '<button class="eb-next-btn" disabled>Next ►</button>' +
+            '</div>' +
+            '</div>' +
+            '</div>' +
+            '</div>';
+
+        document.body.appendChild(modal);
+        document.body.style.overflow = "hidden";
+
+        var currentFolder = folders.length > 0 ? folders[0].name : "INBOX";
+        var currentPage = 1;
+
+        var sidebar = modal.querySelector(".eb-sidebar");
+        var listContainer = modal.querySelector(".eb-email-list");
+        var viewerContainer = modal.querySelector(".eb-viewer");
+        var delBtn = modal.querySelector(".eb-del-btn");
+        var statusText = modal.querySelector(".eb-status-text");
+        var prevBtn = modal.querySelector(".eb-prev-btn");
+        var nextBtn = modal.querySelector(".eb-next-btn");
+        var pageText = modal.querySelector(".eb-page-text");
+
+        async function loadFolder(folder, page) {
+            statusText.textContent = "⏳ Memuat email...";
+            listContainer.innerHTML = "";
+            viewerContainer.style.display = "none";
+            viewerContainer.innerHTML = "";
+            delBtn.disabled = true;
+            delBtn.innerHTML = '🗑️ Hapus Terpilih (0)';
+            
+            try {
+                var res = await fetch(APP_BASE+"/api/email-list", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email: emailAddr, password: password, folder: folder, page: page })
+                });
+                var d = await res.json();
+                
+                if (!d.success) {
+                    statusText.textContent = "❌ " + (d.error || "Gagal memuat email");
+                    return;
+                }
+                
+                statusText.textContent = "✅ " + d.total + " email di " + folder;
+                currentPage = d.page;
+                
+                prevBtn.disabled = currentPage <= 1;
+                nextBtn.disabled = currentPage >= d.pages;
+                pageText.textContent = 'Page ' + currentPage + ' / ' + Math.max(1, d.pages);
+
+                if (d.emails.length === 0) {
+                    listContainer.innerHTML = '<div style="padding:15px;text-align:center;color:var(--text-muted);">Tidak ada email di folder ini.</div>';
+                    return;
+                }
+                
+                var html = '';
+                d.emails.forEach(function(em) {
+                    var fwClass = em.seen ? 'normal' : 'bold';
+                    html += '<div class="eb-email-row" data-uid="' + em.uid + '">' +
+                        '<div class="eb-row-checkbox"><input type="checkbox" class="eb-checkbox" data-uid="' + em.uid + '"></div>' +
+                        '<div class="eb-row-content" style="font-weight:' + fwClass + ';">' +
+                        '<div class="eb-row-from">' + escapeHtml(em.from_name || em.from) + '</div>' +
+                        '<div class="eb-row-subject">' + escapeHtml(em.subject || "(Tanpa subjek)") + '</div>' +
+                        '<div class="eb-row-date">' + escapeHtml(em.date || '') + '</div>' +
+                        '</div>' +
+                        '</div>';
+                });
+                listContainer.innerHTML = html;
+                
+                // attach listeners
+                listContainer.querySelectorAll(".eb-checkbox").forEach(function(cb) {
+                    cb.addEventListener("change", function(e) {
+                        e.stopPropagation();
+                        var checked = listContainer.querySelectorAll(".eb-checkbox:checked").length;
+                        delBtn.disabled = checked === 0;
+                        delBtn.innerHTML = '🗑️ Hapus Terpilih (' + checked + ')';
+                    });
+                });
+                
+                listContainer.querySelectorAll(".eb-row-content").forEach(function(row) {
+                    row.addEventListener("click", function() {
+                        var p = this.closest(".eb-email-row");
+                        var uid = p.getAttribute("data-uid");
+                        loadEmail(folder, uid);
+                        // mark as read visually
+                        this.style.fontWeight = 'normal';
+                    });
+                });
+                
+            } catch (e) {
+                statusText.textContent = "❌ Error: " + e.message;
+            }
+        }
+        
+        async function loadEmail(folder, uid) {
+            viewerContainer.innerHTML = "<div style='text-align:center;padding:20px;'>⏳ Memuat pesan...</div>";
+            viewerContainer.style.display = "block";
+            
+            try {
+                var res = await fetch(APP_BASE+"/api/email-view", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email: emailAddr, password: password, folder: folder, uid: uid })
+                });
+                var d = await res.json();
+                
+                if (!d.success) {
+                    viewerContainer.innerHTML = "<div style='color:var(--color-die);padding:20px;'>❌ " + escapeHtml(d.error || "Gagal memuat pesan") + "</div>";
+                    return;
+                }
+                
+                var em = d.email;
+                var attHtml = '';
+                if (em.attachments && em.attachments.length > 0) {
+                    attHtml = '<div style="margin-top:10px;padding:10px;background:var(--bg-input);border-radius:var(--radius-sm);">' +
+                        '<strong>📎 Attachments:</strong><br>' + 
+                        em.attachments.map(function(a){ return escapeHtml(a); }).join('<br>') +
+                        '</div>';
+                }
+                
+                viewerContainer.innerHTML = '<div class="eb-viewer-header" style="margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid var(--border-color);">' +
+                    '<h3 style="margin:0 0 5px 0;">' + escapeHtml(em.subject || "(Tanpa subjek)") + '</h3>' +
+                    '<div style="font-size:13px;color:var(--text-muted);">' +
+                    '<div><strong>Dari:</strong> ' + escapeHtml(em.from_name ? (em.from_name + " <" + em.from + ">") : em.from) + '</div>' +
+                    '<div><strong>Ke:</strong> ' + escapeHtml(em.to || '') + '</div>' +
+                    '<div><strong>Tanggal:</strong> ' + escapeHtml(em.date || '') + '</div>' +
+                    '</div>' + attHtml +
+                    '</div>' +
+                    '<div class="eb-viewer-body" style="background:#fff;color:#000;padding:15px;border-radius:4px;overflow:auto;">' + (em.body_html || '') + '</div>';
+                    
+            } catch (e) {
+                viewerContainer.innerHTML = "<div style='color:var(--color-die);padding:20px;'>❌ Error: " + escapeHtml(e.message) + "</div>";
+            }
+        }
+        
+        sidebar.querySelectorAll(".eb-folder-item").forEach(function(el) {
+            el.addEventListener("click", function() {
+                sidebar.querySelectorAll(".eb-folder-item").forEach(function(i){ i.classList.remove("active"); });
+                this.classList.add("active");
+                currentFolder = this.getAttribute("data-folder");
+                loadFolder(currentFolder, 1);
+            });
+        });
+        
+        prevBtn.addEventListener("click", function() {
+            if (currentPage > 1) loadFolder(currentFolder, currentPage - 1);
+        });
+        
+        nextBtn.addEventListener("click", function() {
+            loadFolder(currentFolder, currentPage + 1);
+        });
+        
+        delBtn.addEventListener("click", async function() {
+            var selectedUids = [];
+            listContainer.querySelectorAll(".eb-checkbox:checked").forEach(function (cb) {
+                selectedUids.push(cb.getAttribute("data-uid"));
+            });
+
+            if (selectedUids.length === 0) return;
+            if (!confirm("❓ Hapus " + selectedUids.length + " email yang dipilih?")) return;
+
+            delBtn.disabled = true;
+            delBtn.innerHTML = '⏳ Menghapus...';
+
+            var deleted = 0;
+            for (var i = 0; i < selectedUids.length; i++) {
+                try {
+                    var res = await fetch(APP_BASE+"/api/delete-email", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            email: emailAddr,
+                            password: password,
+                            uid: selectedUids[i],
+                            folder: currentFolder
+                        }),
+                    });
+                    var d = await res.json();
+                    if (d.success) deleted++;
+                } catch (e) { /* skip */ }
+            }
+
+            alert("✅ " + deleted + " / " + selectedUids.length + " email berhasil dihapus.");
+            loadFolder(currentFolder, currentPage);
+        });
+
+        modal.querySelector(".ge-modal-close").addEventListener("click", function () {
+            modal.remove();
+            document.body.style.overflow = "";
+        });
+        modal.querySelector(".ge-modal-backdrop").addEventListener("click", function () {
+            modal.remove();
+            document.body.style.overflow = "";
+        });
+
+        // Load initial
+        if (folders.length > 0) {
+            loadFolder(currentFolder, 1);
+        }
+    }
 
     // ---- Live Get Email (with sender picker) ----
     async function handleLiveGetEmail(emailAddr, password, btn) {
@@ -584,7 +856,7 @@
                 return;
             }
 
-            showLiveModal(emailAddr, data.emails);
+            showLiveModal(emailAddr, password, data.emails);
         } catch (err) {
             btn.disabled = false;
             btn.textContent = "📨";
@@ -652,7 +924,7 @@
     }
 
     // ---- Live Email Modal ----
-    function showLiveModal(emailAddr, emails) {
+    function showLiveModal(emailAddr, password, emails) {
         // Remove existing modal if any
         var old = document.getElementById("live-email-modal");
         if (old) old.remove();
@@ -663,14 +935,15 @@
 
         var bodyHtml = '';
         emails.forEach(function (em, idx) {
-            bodyHtml += '<div class="live-modal-email">' +
-                '<div class="live-modal-email-header" data-toggle="' + idx + '">' +
+            bodyHtml += '<div class="live-modal-email" id="live-modal-card-' + em.uid + '">' +
+                '<div class="live-modal-email-header">' +
+                '<input type="checkbox" class="live-modal-checkbox" data-uid="' + em.uid + '">' +
                 '<span class="live-modal-num">#' + (idx + 1) + '</span>' +
-                '<div class="live-modal-meta">' +
+                '<div class="live-modal-meta" data-toggle="' + idx + '">' +
                 '<div class="live-modal-subject">' + escapeHtml(em.subject || "(Tanpa subjek)") + '</div>' +
                 '<div class="live-modal-info">📧 ' + escapeHtml(em.from) + ' &nbsp;•&nbsp; 📅 ' + escapeHtml(em.date) + '</div>' +
                 '</div>' +
-                '<span class="live-modal-chevron">▼</span>' +
+                '<span class="live-modal-chevron" data-toggle="' + idx + '">▼</span>' +
                 '</div>' +
                 '<div class="live-modal-body" id="live-modal-body-' + idx + '" style="display:none;">' + (em.body_html || '') + '</div>' +
                 '</div>';
@@ -682,7 +955,10 @@
             '<div class="ge-modal-header">' +
             '<div class="ge-modal-title">' +
             '<span class="ge-modal-subject">📬 Email dari ' + escapeHtml(emailAddr) + '</span>' +
-            '<span class="ge-modal-info">' + emails.length + ' email ditemukan</span>' +
+            '<span class="ge-modal-info live-modal-total-count">' + emails.length + ' email ditemukan</span>' +
+            '</div>' +
+            '<div class="live-modal-toolbar">' +
+            '<button class="btn-primary live-modal-del-btn" disabled>🗑️ Hapus Terpilih (0)</button>' +
             '</div>' +
             '<button class="ge-modal-close">&times;</button>' +
             '</div>' +
@@ -692,13 +968,72 @@
         document.body.appendChild(modal);
         document.body.style.overflow = "hidden";
 
+        // Handle Checkboxes
+        var checkboxes = modal.querySelectorAll(".live-modal-checkbox");
+        var delBtn = modal.querySelector(".live-modal-del-btn");
+        var totalCountSpan = modal.querySelector(".live-modal-total-count");
+
+        function updateToolbar() {
+            var checked = modal.querySelectorAll(".live-modal-checkbox:checked").length;
+            delBtn.disabled = checked === 0;
+            delBtn.innerHTML = '🗑️ Hapus Terpilih (' + checked + ')';
+        }
+
+        checkboxes.forEach(function (cb) {
+            cb.addEventListener("change", updateToolbar);
+        });
+
+        // Delete Logic
+        delBtn.addEventListener("click", async function () {
+            var selectedUids = [];
+            modal.querySelectorAll(".live-modal-checkbox:checked").forEach(function (cb) {
+                selectedUids.push(cb.getAttribute("data-uid"));
+            });
+
+            if (selectedUids.length === 0) return;
+            if (!confirm("❓ Hapus " + selectedUids.length + " email yang dipilih?")) return;
+
+            var oldText = delBtn.innerHTML;
+            delBtn.disabled = true;
+            delBtn.innerHTML = '⏳ Menghapus...';
+
+            var deleted = 0;
+            for (var i = 0; i < selectedUids.length; i++) {
+                try {
+                    var res = await fetch(APP_BASE+"/api/delete-email", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            email: emailAddr,
+                            password: password,
+                            uid: selectedUids[i],
+                        }),
+                    });
+                    var d = await res.json();
+                    if (d.success) {
+                        deleted++;
+                        var card = document.getElementById("live-modal-card-" + selectedUids[i]);
+                        if (card) card.remove();
+                    }
+                } catch (e) { /* skip */ }
+            }
+
+            alert("✅ " + deleted + " / " + selectedUids.length + " email berhasil dihapus.");
+            
+            var remaining = modal.querySelectorAll(".live-modal-email").length;
+            totalCountSpan.textContent = remaining + ' email ditemukan';
+            updateToolbar();
+        });
+
         // Toggle handlers for each email card
-        modal.querySelectorAll(".live-modal-email-header[data-toggle]").forEach(function (hdr) {
-            hdr.style.cursor = "pointer";
-            hdr.addEventListener("click", function () {
+        modal.querySelectorAll(".live-modal-meta[data-toggle], .live-modal-chevron[data-toggle]").forEach(function (el) {
+            el.style.cursor = "pointer";
+            el.addEventListener("click", function (e) {
+                if (e.target.classList.contains("live-modal-checkbox")) return;
                 var idx = this.getAttribute("data-toggle");
                 var body = document.getElementById("live-modal-body-" + idx);
-                var chevron = this.querySelector(".live-modal-chevron");
+                var header = this.closest(".live-modal-email-header");
+                var chevron = header.querySelector(".live-modal-chevron");
                 if (body.style.display === "none") {
                     body.style.display = "block";
                     chevron.textContent = "▲";

@@ -24,7 +24,7 @@ from imap_engine import (
     _validate_exclusion_entries,
 )
 from filelock import Timeout
-from get_email_engine import fetch_emails, delete_email
+from get_email_engine import fetch_emails, delete_email, list_folders, list_folder_emails, get_single_email
 from loop_delete_engine import LoopDeleteJob
 
 app = Flask(__name__)
@@ -452,13 +452,64 @@ def api_delete_email():
     email_addr = data.get("email", "").strip()
     password = data.get("password", "").strip()
     uid = data.get("uid", "").strip()
+    folder = data.get("folder", "INBOX").strip()
 
     if not email_addr or not password:
         return jsonify({"success": False, "error": "Email dan password wajib diisi."}), 400
     if not uid:
         return jsonify({"success": False, "error": "UID email tidak valid."}), 400
 
-    result = delete_email(email_addr, password, uid)
+    result = delete_email(email_addr, password, uid, folder=folder)
+    return jsonify(result)
+
+
+# ---- Email Browser API ----
+
+@app.route("/api/email-folders", methods=["POST"])
+@login_required
+def api_email_folders():
+    data = request.get_json()
+    email_addr = data.get("email", "").strip()
+    password = data.get("password", "").strip()
+
+    if not email_addr or not password:
+        return jsonify({"success": False, "error": "Email dan password wajib diisi."}), 400
+
+    result = list_folders(email_addr, password)
+    return jsonify(result)
+
+
+@app.route("/api/email-list", methods=["POST"])
+@login_required
+def api_email_list():
+    data = request.get_json()
+    email_addr = data.get("email", "").strip()
+    password = data.get("password", "").strip()
+    folder = data.get("folder", "INBOX").strip()
+    page = int(data.get("page", 1))
+
+    if not email_addr or not password:
+        return jsonify({"success": False, "error": "Email dan password wajib diisi."}), 400
+
+    result = list_folder_emails(email_addr, password, folder=folder, page=page)
+    return jsonify(result)
+
+
+@app.route("/api/email-view", methods=["POST"])
+@login_required
+def api_email_view():
+    data = request.get_json()
+    email_addr = data.get("email", "").strip()
+    password = data.get("password", "").strip()
+    folder = data.get("folder", "INBOX").strip()
+    uid = data.get("uid", "").strip()
+
+    if not email_addr or not password:
+        return jsonify({"success": False, "error": "Email dan password wajib diisi."}), 400
+    if not uid:
+        return jsonify({"success": False, "error": "UID email tidak valid."}), 400
+
+    result = get_single_email(email_addr, password, folder=folder, uid=uid)
     return jsonify(result)
 
 
