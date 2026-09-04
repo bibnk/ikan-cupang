@@ -1,12 +1,31 @@
 # imap_config.py
-# Loads IMAP server config from imap_config.json
+# Loads IMAP server config from central PMJ imap database
 # + lookup_imap_config() with parent domain fallback
 import json
 import os
+import sys
 
-_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "imap_config.json")
-with open(_config_path, "r", encoding="utf-8") as _f:
-    DEFAULT_IMAP_CONFIG = json.load(_f)
+# Central IMAP database path
+# Production (Linux/VPS): /opt/pmj/imap/
+# Development (Windows): C:\Users\Administrator\Desktop\PMJ\imap\
+if sys.platform == "win32":
+    IMAP_DB_DIR = os.path.join(os.path.expanduser("~"), "Desktop", "PMJ", "imap")
+else:
+    IMAP_DB_DIR = "/opt/pmj/imap"
+
+# Fallback: jika central dir belum ada, pakai local
+if not os.path.isdir(IMAP_DB_DIR):
+    IMAP_DB_DIR = os.path.dirname(os.path.abspath(__file__))
+
+IMAP_CONFIG_PATH = os.path.join(IMAP_DB_DIR, "imap_config.json")
+IMAP_SUCCESS_PATH = os.path.join(IMAP_DB_DIR, "imap_success.json")
+
+# Load config
+if os.path.exists(IMAP_CONFIG_PATH):
+    with open(IMAP_CONFIG_PATH, "r", encoding="utf-8") as _f:
+        DEFAULT_IMAP_CONFIG = json.load(_f)
+else:
+    DEFAULT_IMAP_CONFIG = {}
 
 # Country-code TLDs yang punya 2 bagian (ne.jp, co.uk, com.br, dll)
 _CC_TLDS = {
@@ -40,6 +59,7 @@ _CC_TLDS = {
     "com.sa", "org.sa",
     "com.bo", "org.bo",
     "com.tn", "org.tn",
+    "com.vn",
     "edu.ye",
     "gob.ec", "gob.mx", "gob.pe",
 }
@@ -54,20 +74,16 @@ def _get_parent_domain(domain):
     """
     parts = domain.split(".")
     if len(parts) <= 2:
-        return None  # sudah root domain
+        return None
 
-    # Cek apakah ada CC TLD (2 bagian)
     for i in range(len(parts) - 2, 0, -1):
         suffix = ".".join(parts[i:])
         if suffix in _CC_TLDS:
-            # Parent = 1 level di atas CC TLD
             parent = ".".join(parts[i-1:])
             if parent != domain:
                 return parent
             return None
 
-    # Standard TLD (1 bagian: .com, .net, .it, .es, dll)
-    # Parent = last 2 parts
     parent = ".".join(parts[-2:])
     if parent != domain:
         return parent
@@ -77,32 +93,18 @@ def _get_parent_domain(domain):
 def lookup_imap_config(domain, extra_configs=None):
     """
     Cari IMAP config untuk domain dengan fallback ke parent domain.
-    
-    Flow:
-    1. Cek exact match: configs["am.em-net.ne.jp"]
-    2. Kalau ga ketemu, cek parent: configs["em-net.ne.jp"]
-    3. Kalau parent juga ga ketemu, return None (auto-discover nanti yang handle)
-    
-    Args:
-        domain: email domain (lowercase)
-        extra_configs: dict tambahan (e.g. imap_success.json cache)
-    Returns:
-        dict {"server": ..., "port": ...} atau None
     """
     configs = DEFAULT_IMAP_CONFIG
-    
-    # 1. Exact match di default config
+
     cfg = configs.get(domain)
     if cfg:
         return cfg
-    
-    # 2. Exact match di extra configs (imap_success cache)
+
     if extra_configs:
         cfg = extra_configs.get(domain)
         if cfg:
             return cfg
-    
-    # 3. Parent domain fallback
+
     parent = _get_parent_domain(domain)
     if parent:
         cfg = configs.get(parent)
@@ -112,8 +114,7 @@ def lookup_imap_config(domain, extra_configs=None):
             cfg = extra_configs.get(parent)
             if cfg:
                 return cfg
-        
-        # 4. Grandparent (untuk kasus sub.sub.domain.ne.jp)
+
         grandparent = _get_parent_domain(parent)
         if grandparent:
             cfg = configs.get(grandparent)
@@ -123,5 +124,26 @@ def lookup_imap_config(domain, extra_configs=None):
                 cfg = extra_configs.get(grandparent)
                 if cfg:
                     return cfg
-    
+
     return None
+
+
+def load_imap_success():
+    """Load imap_success.json dari central database."""
+    if os.path.exists(IMAP_SUCCESS_PATH):
+        try:
+            with open(IMAP_SUCCESS_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def save_imap_success(data):
+    """Save imap_success.json ke central database."""
+    try:
+        os.makedirs(os.path.dirname(IMAP_SUCCESS_PATH), exist_ok=True)
+        with open(IMAP_SUCCESS_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass

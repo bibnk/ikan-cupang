@@ -18,15 +18,15 @@ from datetime import datetime, timedelta
 
 from filelock import FileLock, Timeout
 
-from imap_config import DEFAULT_IMAP_CONFIG, lookup_imap_config
+from imap_config import DEFAULT_IMAP_CONFIG, lookup_imap_config, IMAP_SUCCESS_PATH
 
 socket.setdefaulttimeout(10)
 
 # Regex
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
-# Master imap_success.json (project root) — single source of truth for learned IMAP configs.
-MASTER_IMAP_SUCCESS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "imap_success.json")
+# Master imap_success.json — central PMJ database
+MASTER_IMAP_SUCCESS_PATH = IMAP_SUCCESS_PATH
 MASTER_IMAP_SUCCESS_LOCK_PATH = MASTER_IMAP_SUCCESS_PATH + ".lock"
 MASTER_LOCK_TIMEOUT_SECONDS = 30
 

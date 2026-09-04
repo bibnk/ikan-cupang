@@ -14,14 +14,14 @@ from email.header import decode_header
 from html.parser import HTMLParser
 from datetime import datetime, timedelta
 
-from imap_config import DEFAULT_IMAP_CONFIG, lookup_imap_config
+from imap_config import DEFAULT_IMAP_CONFIG, lookup_imap_config, IMAP_SUCCESS_PATH, load_imap_success, save_imap_success
 
 socket.setdefaulttimeout(60)
 
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
-# File konfigurasi IMAP success (di-cache dari hasil koneksi berhasil)
-IMAP_OUTPUT_FILE = os.path.join(os.path.dirname(__file__) or ".", "imap_success.json")
+# File konfigurasi IMAP success — central database
+IMAP_OUTPUT_FILE = IMAP_SUCCESS_PATH
 
 # Daftar domain yang dilewati
 DOMAINS_TO_SKIP_KEYWORDS = {"hotmail", "live", "msn", "outlook", "yahoo", "interia", "poczta.fm"}

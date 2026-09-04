@@ -10,7 +10,10 @@ import threading
 import concurrent.futures
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
-JSON_PATH = os.path.join(_DIR, "imap_config.json")
+
+# Use central IMAP database path
+from imap_config import IMAP_CONFIG_PATH
+JSON_PATH = IMAP_CONFIG_PATH
 
 # MX -> IMAP mapping table
 _MX_MAPPINGS = [
