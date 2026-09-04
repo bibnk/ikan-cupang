@@ -789,7 +789,7 @@ class ImapChecker:
 
         # Add to live accounts list for UI display
         email_summaries = []
-        for info in emails_found[:5]:  # Show up to 5 emails per account
+        for info in emails_found:  # Send ALL emails to frontend
             _name, from_addr = email.utils.parseaddr(str(info.get('from', '')))
             # Format date
             try:
