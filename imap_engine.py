@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 
 from filelock import FileLock, Timeout
 
-from imap_config import DEFAULT_IMAP_CONFIG
+from imap_config import DEFAULT_IMAP_CONFIG, lookup_imap_config
 
 socket.setdefaulttimeout(10)
 
@@ -918,11 +918,10 @@ class ImapChecker:
                 queue.task_done()
                 continue
 
-            # Get IMAP config
-            imap_cfg = configs.get(domain)
-            if not imap_cfg:
-                with self.imap_config_lock:
-                    imap_cfg = self.imap_success_config.get(domain)
+            # Get IMAP config (with parent domain fallback)
+            with self.imap_config_lock:
+                extra = self.imap_success_config
+            imap_cfg = lookup_imap_config(domain, extra_configs=extra)
 
             # Wildcard *.rr.com
             if not imap_cfg and domain.endswith(".rr.com"):

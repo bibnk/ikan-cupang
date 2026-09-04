@@ -14,7 +14,7 @@ from email.header import decode_header
 from html.parser import HTMLParser
 from datetime import datetime, timedelta
 
-from imap_config import DEFAULT_IMAP_CONFIG
+from imap_config import DEFAULT_IMAP_CONFIG, lookup_imap_config
 
 socket.setdefaulttimeout(60)
 
@@ -291,10 +291,10 @@ def sender_matches(from_address, target_senders):
 
 
 def get_imap_config(domain):
-    """Ambil konfigurasi IMAP untuk domain tertentu (config bawaan + imap_success.json)."""
-    configs = DEFAULT_IMAP_CONFIG.copy()
-    configs.update(load_imap_success_config())
-    return configs.get(domain)
+    """Ambil konfigurasi IMAP untuk domain tertentu (config bawaan + imap_success.json).
+    Otomatis cek parent domain jika subdomain tidak ditemukan."""
+    extra = load_imap_success_config()
+    return lookup_imap_config(domain, extra_configs=extra)
 
 
 def _save_imap_success(domain, config_data):

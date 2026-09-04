@@ -11,7 +11,7 @@ import time
 from email.header import decode_header
 from datetime import datetime, timedelta
 
-from imap_config import DEFAULT_IMAP_CONFIG
+from imap_config import DEFAULT_IMAP_CONFIG, lookup_imap_config
 
 socket.setdefaulttimeout(60)
 
@@ -74,7 +74,7 @@ class LoopDeleteJob:
 
         # Resolve IMAP config
         domain = email_address.split('@')[-1].lower()
-        self.imap_config = DEFAULT_IMAP_CONFIG.get(domain)
+        self.imap_config = lookup_imap_config(domain)
         if not self.imap_config:
             self.imap_config = try_imap_variants(domain, email_address, password)
 
