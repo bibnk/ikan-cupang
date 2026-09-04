@@ -636,6 +636,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "aksusuardi.com": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "akturkharita.com": {
     "port": 993,
     "server": "imap.zoho.com"
@@ -1240,6 +1244,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "areatest.it": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "arenbatu.com": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -1435,6 +1443,10 @@
   "asso-renaitre.com": {
     "port": 993,
     "server": "imap-mail.outlook.com"
+  },
+  "astracompany.it": {
+    "port": 993,
+    "server": "imaps.register.it"
   },
   "astrobhoomika.com": {
     "port": 993,
@@ -1765,6 +1777,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "bearpm.com": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "beautiforyou.com": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -1990,6 +2006,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "biopowersrl.com": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "birdes.org": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -2082,6 +2102,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "bltalaw.com": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "blu.it": {
     "port": 993,
     "server": "imapmail.libero.it"
@@ -2161,6 +2185,10 @@
   "bonpasteur.com": {
     "port": 993,
     "server": "ssl0.ovh.net"
+  },
+  "booknow.jp": {
+    "port": 993,
+    "server": "imap.lolipop.jp"
   },
   "booksandmusicshop.com": {
     "port": 993,
@@ -2596,6 +2624,14 @@
     "port": 993,
     "server": "imap.ziggo.nl"
   },
+  "casitaliana.net": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
+  "caterwin.it": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "catlover.com": {
     "port": 993,
     "server": "imap.mail.com"
@@ -2934,6 +2970,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "citytelsistem.it": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "cjic.jp": {
     "port": 993,
     "server": "imap.mail.com"
@@ -2981,6 +3021,10 @@
   "climaxpackersmovers.com": {
     "port": 993,
     "server": "imap.hostinger.com"
+  },
+  "clinic-hiramatsu.com": {
+    "port": 993,
+    "server": "imap.lolipop.jp"
   },
   "clinicalatrinidad.com.co": {
     "port": 993,
@@ -3406,6 +3450,10 @@
     "port": 993,
     "server": "imap.zoho.com"
   },
+  "creattivita.com": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "credi-mister.com": {
     "port": 993,
     "server": "imap.mail.com"
@@ -3517,6 +3565,10 @@
   "cvimsa.com": {
     "port": 993,
     "server": "imap.hostinger.com"
+  },
+  "cyatam.com": {
+    "port": 993,
+    "server": "imap.mailhostbox.com"
   },
   "cyber.wizard.com": {
     "port": 993,
@@ -3726,6 +3778,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "dentalgaia.it": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "dentistbrausa.com": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -3853,6 +3909,10 @@
   "dia21holding.com": {
     "port": 993,
     "server": "imap.hostinger.com"
+  },
+  "diabetecodogno.it": {
+    "port": 993,
+    "server": "imaps.register.it"
   },
   "dialng.com": {
     "port": 993,
@@ -4754,6 +4814,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "emilioalessandromanzotti.it": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "emirtechsyselektronik.com": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -4850,6 +4914,10 @@
   "enp-constantine.dz": {
     "port": 993,
     "server": "imap.hostinger.com"
+  },
+  "enposh.it": {
+    "port": 993,
+    "server": "imaps.register.it"
   },
   "ensinaaqui.com": {
     "port": 993,
@@ -5255,6 +5323,10 @@
   "falconco.mx": {
     "port": 993,
     "server": "imap.hostinger.com"
+  },
+  "falegnameriastagi.it": {
+    "port": 993,
+    "server": "imaps.register.it"
   },
   "falgunarmy.com": {
     "port": 993,
@@ -5672,6 +5744,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "fumoevapore.it": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "fundacionsordoscomahue.com": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -5731,6 +5807,10 @@
   "gabel.com": {
     "port": 993,
     "server": "imap.mail.com"
+  },
+  "galleybathware.com": {
+    "port": 993,
+    "server": "imap.xserver.jp"
   },
   "gameofgiving.com": {
     "port": 993,
@@ -6296,6 +6376,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "green-goose.net": {
+    "port": 993,
+    "server": "imap.lolipop.jp"
+  },
   "greenbacksmicroservices.com": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -6459,6 +6543,10 @@
   "gsuite": {
     "port": 993,
     "server": "imap.gmail.com"
+  },
+  "guelfi.eu": {
+    "port": 993,
+    "server": "imaps.register.it"
   },
   "guiacms.com": {
     "port": 993,
@@ -7060,6 +7148,10 @@
     "port": 993,
     "server": "imap.softbank.jp"
   },
+  "i.ua": {
+    "port": 993,
+    "server": "imap.i.ua"
+  },
   "iaraedu.org": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -7244,6 +7336,10 @@
     "port": 993,
     "server": "imap.ionos.com"
   },
+  "ilcentrotirreno.it": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "ilimtour.com": {
     "port": 993,
     "server": "ssl0.ovh.net"
@@ -7331,6 +7427,10 @@
   "inacatv.ne.jp": {
     "port": 993,
     "server": "mail.inacatv.ne.jp"
+  },
+  "inagaki-masatoshi.com": {
+    "port": 993,
+    "server": "imap.lolipop.jp"
   },
   "iname.com": {
     "port": 993,
@@ -7717,6 +7817,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "italhomenetwork.it": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "italymail.com": {
     "port": 993,
     "server": "imap.mail.com"
@@ -7993,6 +8097,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "juniverse.it": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "justiceforte.com": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -8044,6 +8152,10 @@
   "kaizenimmigration.com": {
     "port": 993,
     "server": "imap.hostinger.com"
+  },
+  "kakusan-taisei.jp": {
+    "port": 993,
+    "server": "imap.lolipop.jp"
   },
   "kalemna.com": {
     "port": 993,
@@ -8433,6 +8545,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "kuzuwa.net": {
+    "port": 993,
+    "server": "imap.lolipop.jp"
+  },
   "kyatoolsji.com": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -8448,6 +8564,10 @@
   "laagenciaia.com": {
     "port": 993,
     "server": "imap.hostinger.com"
+  },
+  "labtec.it": {
+    "port": 993,
+    "server": "imaps.register.it"
   },
   "lachicaderosa.com": {
     "port": 993,
@@ -9161,6 +9281,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "makestage.com": {
+    "port": 993,
+    "server": "imap.lolipop.jp"
+  },
   "makkah-tech.com": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -9332,6 +9456,10 @@
   "mazziinfosolutions.com": {
     "port": 993,
     "server": "imap.hostinger.com"
+  },
+  "mcas.it": {
+    "port": 993,
+    "server": "imaps.register.it"
   },
   "mcnamaragraphics.com": {
     "port": 993,
@@ -10054,6 +10182,10 @@
     "port": 993,
     "server": "imap.ziggo.nl"
   },
+  "muner.it": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "munich.com": {
     "port": 993,
     "server": "imap.mail.com"
@@ -10093,6 +10225,10 @@
   "musiconstage.org": {
     "port": 993,
     "server": "imap.zoho.com"
+  },
+  "muskultrasound.it": {
+    "port": 993,
+    "server": "imaps.register.it"
   },
   "muslim.com": {
     "port": 993,
@@ -11199,6 +11335,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "pelagagge.it": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "pen2digital.io": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -11246,6 +11386,10 @@
   "perlitarealestate.mx": {
     "port": 993,
     "server": "imap.hostinger.com"
+  },
+  "pernondimenticare.com": {
+    "port": 993,
+    "server": "imaps.register.it"
   },
   "pescoapp.com": {
     "port": 993,
@@ -11651,6 +11795,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "preziosoluxury.com": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "pricecreate.jp": {
     "port": 993,
     "server": "imap.mail.com"
@@ -11955,9 +12103,17 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "radioamorenapoli.it": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "radiology-resident.com": {
     "port": 993,
     "server": "imap.hostinger.com"
+  },
+  "radiosmeraldo.it": {
+    "port": 993,
+    "server": "imaps.register.it"
   },
   "rafaylogistik.com": {
     "port": 993,
@@ -13253,6 +13409,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "siware.it": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "sja-fashion.com": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -13557,6 +13717,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "sovema.com": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "sovereignstoneproperties.co.uk": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -13738,6 +13902,10 @@
     "port": 993,
     "server": "imap.gmail.com"
   },
+  "startrac.it": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "stayinindonesia.com": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -13845,6 +14013,10 @@
   "studiodjlimpresiones.com": {
     "port": 993,
     "server": "imap.hostinger.com"
+  },
+  "studioinarte.it": {
+    "port": 993,
+    "server": "imaps.register.it"
   },
   "studiopiccolo.mi.it": {
     "port": 993,
@@ -14142,6 +14314,10 @@
     "port": 143,
     "server": "mail.brighthouse.com",
     "ssl": false
+  },
+  "tamura-kenzai.co.jp": {
+    "port": 993,
+    "server": "imap.lolipop.jp"
   },
   "tananugrahsejahtera.com": {
     "port": 993,
@@ -14630,6 +14806,10 @@
   "thesafesteptub.com": {
     "port": 993,
     "server": "imap-mail.outlook.com"
+  },
+  "thesemedecine.com": {
+    "port": 993,
+    "server": "imap.xserver.jp"
   },
   "thesetinstitute.com": {
     "port": 993,
@@ -15304,6 +15484,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "vallauristore.it": {
+    "port": 993,
+    "server": "imaps.register.it"
+  },
   "valnerainsurance.com": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -15868,6 +16052,10 @@
     "port": 993,
     "server": "imap.gmail.com"
   },
+  "whitneypress.com": {
+    "port": 993,
+    "server": "imap.mailhostbox.com"
+  },
   "whizsolutions.co.uk": {
     "port": 993,
     "server": "imap.mail.com"
@@ -15935,6 +16123,10 @@
   "wolvexmx.com": {
     "port": 993,
     "server": "imap.hostinger.com"
+  },
+  "woodcatanzaro.com": {
+    "port": 993,
+    "server": "imaps.register.it"
   },
   "wookiapp.com": {
     "port": 993,
@@ -16184,6 +16376,10 @@
     "port": 993,
     "server": "imap.gmail.com"
   },
+  "yamanaka-ta.jp": {
+    "port": 993,
+    "server": "imap.lolipop.jp"
+  },
   "yandex": {
     "port": 993,
     "server": "imap.yandex.ru"
@@ -16275,6 +16471,10 @@
   "yosoylead.com": {
     "port": 993,
     "server": "imap.hostinger.com"
+  },
+  "you-export.it": {
+    "port": 993,
+    "server": "imaps.register.it"
   },
   "yourbestie.id": {
     "port": 993,
@@ -16408,6 +16608,10 @@
     "port": 993,
     "server": "imap.hostinger.com"
   },
+  "zetta.mn": {
+    "port": 993,
+    "server": "imap.mailhostbox.com"
+  },
   "zicaannanagar.com": {
     "port": 993,
     "server": "imap.hostinger.com"
@@ -16523,5 +16727,9 @@
   "zz.hu": {
     "port": 993,
     "server": "imap-mail.outlook.com"
+  },
+  "zzapmagazine.it": {
+    "port": 993,
+    "server": "imaps.register.it"
   }
 }
