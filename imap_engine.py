@@ -7,6 +7,7 @@ import email.utils
 import os
 import sys
 import threading
+import time
 import re
 import json
 import socket
@@ -683,6 +684,17 @@ class ImapChecker:
         self.skipped_count = 0
         self.progress_lock = threading.Lock()
 
+        # Resolver tracking (auto-resolve runs inline during checking)
+        # resolved_map: {domain: {"server":..., "port":..., "via": "mx|direct|variants"}}
+        self.resolved_map = {}
+        self.resolved_count = 0
+        self.resolver_lock = threading.Lock()
+        # Time-series for the progress chart (sampled ~1/sec)
+        self.resolve_history = []  # [{"t": epoch, "unreg": n, "resolved": n, "checked": n}]
+        self._history_lock = threading.Lock()
+        self._start_epoch = None
+        self._resolver_thread = None
+
         # Live accounts list (for real-time display on UI)
         self.live_accounts = []
         self.live_accounts_lock = threading.Lock()
@@ -828,6 +840,112 @@ class ImapChecker:
                     f.write(f"{domain}\n")
                 self.unreg_domains.add(domain)
 
+    def _record_resolve(self, domain, cfg, via):
+        """Record a successful domain resolution for the resolver chart."""
+        with self.resolver_lock:
+            if domain not in self.resolved_map:
+                entry = {"server": cfg.get("server"), "port": cfg.get("port"), "via": via}
+                if cfg.get("ssl") is False:
+                    entry["ssl"] = False
+                self.resolved_map[domain] = entry
+                self.resolved_count += 1
+
+    def _sample_history(self):
+        """Append one time-series point for the progress chart."""
+        now = time.time()
+        with self.progress_lock:
+            unreg = self.unreg_count
+            checked = self.checked
+        with self.resolver_lock:
+            resolved = self.resolved_count
+        with self._history_lock:
+            self.resolve_history.append({
+                "t": round(now, 1),
+                "unreg": unreg,
+                "resolved": resolved,
+                "checked": checked,
+            })
+
+    def _auto_resolve_loop(self):
+        """Background thread: continuously resolve unreg domains via MX +
+        direct IMAP while the check is running, sampling history ~1/sec.
+
+        Domains the worker already resolved inline (via _try_imap_variants)
+        are recorded through _record_resolve and skipped here. This loop
+        handles domains still unregistered so resolution happens during the
+        check instead of only after clicking a button.
+        """
+        # Lazy imports so DNS/socket work only happens when a job runs
+        try:
+            import dns.resolver as _dns_resolver
+            has_dns = True
+        except ImportError:
+            _dns_resolver = None
+            has_dns = False
+        from unreg_resolver import _mx_to_imap, _try_imap_connect
+
+        resolver = None
+        if has_dns:
+            resolver = _dns_resolver.Resolver()
+            resolver.nameservers = ["8.8.8.8", "8.8.4.4", "1.1.1.1"]
+            resolver.timeout = 3
+            resolver.lifetime = 5
+
+        while not self.is_stopped and self.status == "running":
+            self._sample_history()
+
+            # Snapshot domains needing resolution
+            with self.unreg_lock:
+                pending = list(self.unreg_domains)
+            with self.resolver_lock:
+                pending = [d for d in pending if d not in self.resolved_map]
+
+            for domain in pending:
+                if self.is_stopped or self.status != "running":
+                    break
+                cfg = None
+                via = None
+                # MX-based resolve first (cheap)
+                if resolver is not None:
+                    try:
+                        answers = resolver.resolve(domain, "MX")
+                        mx = str(sorted(answers, key=lambda r: r.preference)[0].exchange).lower().rstrip(".")
+                        imap = _mx_to_imap(mx)
+                        if imap:
+                            cfg = {"server": imap[0], "port": imap[1]}
+                            via = "mx"
+                    except Exception:
+                        pass
+                # Direct IMAP probe fallback
+                if cfg is None:
+                    for server in (f"imap.{domain}", f"mail.{domain}", f"imaps.{domain}", domain):
+                        if self.is_stopped:
+                            break
+                        if _try_imap_connect(server, 993):
+                            cfg = {"server": server, "port": 993}
+                            via = "direct"
+                            break
+                        if _try_imap_connect(server, 143):
+                            cfg = {"server": server, "port": 143, "ssl": False}
+                            via = "direct"
+                            break
+
+                if cfg:
+                    self._record_resolve(domain, cfg, via)
+                    # Persist to the shared imap config so future checks skip it
+                    try:
+                        self._update_imap_config(domain, cfg)
+                    except Exception:
+                        pass
+                    # Drop from unreg set so it stops counting as unresolved
+                    with self.unreg_lock:
+                        self.unreg_domains.discard(domain)
+
+            time.sleep(1)
+
+        # Final sample so the chart ends at the true end-state
+        self._sample_history()
+
     def _write_domain_skip(self, email_addr, password):
         with self.domain_skip_lock:
             with open(self.domain_skip_file, 'a', encoding='utf-8') as f:
@@ -861,6 +979,15 @@ class ImapChecker:
                 "unreg": self.unreg_count,
                 "skipped": self.skipped_count,
             }
+
+        # Resolver stats + time-series for the progress chart
+        with self.resolver_lock:
+            data["resolved"] = self.resolved_count
+            data["resolved_map"] = dict(self.resolved_map)
+        with self._history_lock:
+            data["resolve_history"] = list(self.resolve_history)
+        with self.unreg_lock:
+            data["unreg_domains"] = sorted(self.unreg_domains)
 
         # Include live accounts for UI display
         with self.live_accounts_lock:
@@ -931,6 +1058,7 @@ class ImapChecker:
                 result = self._try_imap_variants(domain, email_addr, password, proxy=proxy)
                 if result:
                     self._update_imap_config(domain, result)
+                    self._record_resolve(domain, result, "variants")
                     imap_cfg = result
                     configs[domain] = result
                 else:
@@ -959,6 +1087,7 @@ class ImapChecker:
                     if not fallback:
                         raise
                     self._update_imap_config(domain, fallback)
+                    self._record_resolve(domain, fallback, "variants")
                     configs[domain] = fallback
                     mail_conn = try_connect(fallback)
 
@@ -1030,6 +1159,7 @@ class ImapChecker:
     def run(self):
         """Start checking in background threads."""
         self.status = "running"
+        self._start_epoch = time.time()
 
         self._queue = Queue()
         for acc in self.accounts:
@@ -1043,6 +1173,11 @@ class ImapChecker:
             t.start()
             threads.append(t)
 
+        # Start the inline auto-resolver (runs alongside the check)
+        self._resolver_thread = threading.Thread(target=self._auto_resolve_loop)
+        self._resolver_thread.daemon = True
+        self._resolver_thread.start()
+
         # Wait for completion in a separate thread so run() returns immediately
         def wait_completion():
             self._queue.join()
@@ -1050,6 +1185,9 @@ class ImapChecker:
                 t.join(timeout=2)
             if not self.is_stopped:
                 self.status = "done"
+            # Let the resolver thread exit its loop, then take a final sample
+            if self._resolver_thread:
+                self._resolver_thread.join(timeout=3)
 
         watcher = threading.Thread(target=wait_completion)
         watcher.daemon = True

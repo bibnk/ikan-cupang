@@ -4,11 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>History</title>
+    <title>Resolver</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <script>window.APP_BASE = "{{ app_base }}";</script>
 </head>
 
@@ -24,9 +25,9 @@
                     Email</span></a>
             <a href="{{ url_for('loop_delete_page') }}" class="fnav-link"><span class="fnav-icon">🔄</span><span class="fnav-label">Loop
                     Delete</span></a>
-            <a href="{{ url_for('resolver_page') }}" class="fnav-link"><span class="fnav-icon">🔍</span><span
+            <a href="{{ url_for('resolver_page') }}" class="fnav-link active"><span class="fnav-icon">🔍</span><span
                     class="fnav-label">Resolver</span></a>
-            <a href="{{ url_for('history_page') }}" class="fnav-link active"><span class="fnav-icon">📋</span><span
+            <a href="{{ url_for('history_page') }}" class="fnav-link"><span class="fnav-icon">📋</span><span
                     class="fnav-label">History</span></a>
             {% if is_admin %}<a href="{{ url_for('admin_page') }}" class="fnav-link"><span class="fnav-icon">⚙️</span><span
                     class="fnav-label">Admin</span></a>{% endif %}
@@ -39,37 +40,55 @@
             <div class="header-glow"></div>
             <div class="header-content">
                 <div class="logo">
-                    <div class="logo-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <div class="logo-icon" style="background: linear-gradient(135deg, #06b6d4, #3b82f6);">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <circle cx="11" cy="11" r="7" />
+                            <path d="M21 21l-4.35-4.35" />
                         </svg>
                     </div>
-                    <h1>Job <span class="gradient-text"
-                            style="background:linear-gradient(135deg,#f59e0b,#d97706);-webkit-background-clip:text;background-clip:text;">History</span>
+                    <h1>IMAP <span class="gradient-text"
+                            style="background:linear-gradient(135deg,#06b6d4,#3b82f6);-webkit-background-clip:text;background-clip:text;">Resolver</span>
                     </h1>
                 </div>
-                <p class="subtitle">Riwayat semua job — tersedia di semua device</p>
+                <p class="subtitle">Auto-resolve unreg domain berjalan selama pengecekan</p>
             </div>
         </header>
 
         <main class="main-content">
-            <div id="history-loading" class="ge-loading">
+            <!-- Summary stat cards -->
+            <div class="rs-stats" id="rs-stats">
+                <div class="rs-stat-card">
+                    <div class="rs-stat-num" id="rs-total-jobs">0</div>
+                    <div class="rs-stat-label">Job</div>
+                </div>
+                <div class="rs-stat-card rs-cyan">
+                    <div class="rs-stat-num" id="rs-total-resolved">0</div>
+                    <div class="rs-stat-label">Resolved</div>
+                </div>
+                <div class="rs-stat-card rs-amber">
+                    <div class="rs-stat-num" id="rs-total-unreg">0</div>
+                    <div class="rs-stat-label">Unreg Tersisa</div>
+                </div>
+            </div>
+
+            <div id="resolver-loading" class="ge-loading">
                 <div class="ge-spinner"></div>
-                <p>Memuat riwayat job...</p>
+                <p>Memuat data resolver...</p>
             </div>
 
-            <div id="history-empty" class="ge-empty hidden">
-                <div class="ge-empty-icon">📭</div>
-                <p>Belum ada job. Mulai dari halaman Console.</p>
+            <div id="resolver-empty" class="ge-empty hidden">
+                <div class="ge-empty-icon">🔍</div>
+                <p>Belum ada job dengan aktivitas resolve. Jalankan pengecekan dari Console.</p>
             </div>
 
-            <div id="history-list"></div>
+            <!-- Per-job chart cards -->
+            <div id="resolver-list"></div>
         </main>
         <footer class="footer">
-            <p>History</p>
+            <p>Resolver</p>
         </footer>
     </div>
-    <script src="{{ url_for('static', filename='history.js') }}"></script>
+    <script src="{{ url_for('static', filename='resolver.js') }}"></script>
 </body>
 
 </html>
