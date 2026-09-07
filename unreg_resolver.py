@@ -149,9 +149,16 @@ def resolve_unreg_domains(domains, progress_callback=None):
 
     from imap_config import lookup_imap_config, _get_parent_domain, DEFAULT_IMAP_CONFIG
 
-    # Load current config
-    with open(JSON_PATH, "r", encoding="utf-8") as f:
-        config = json.load(f)
+    # Load current config (tolerate missing file on fresh deploys)
+    if os.path.exists(JSON_PATH):
+        try:
+            with open(JSON_PATH, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            config = {}
+    else:
+        os.makedirs(os.path.dirname(JSON_PATH), exist_ok=True)
+        config = {}
 
     # Filter already known
     missing = list(set(d.lower().strip().rstrip(".") for d in domains 

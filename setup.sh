@@ -47,6 +47,23 @@ sudo $VENV_DIR/bin/pip install -r $APP_DIR/requirements.txt
 
 # Create jobs directory
 sudo mkdir -p $APP_DIR/jobs
+
+# Seed empty IMAP config DB so first run never crashes with
+# "[Errno 2] No such file or directory: imap_config.json".
+# The real data is gitignored, so a fresh clone has none — create both the
+# app-dir file (fallback) and the central /opt/pmj/imap DB (production path).
+echo "  Seeding empty IMAP config DB..."
+CENTRAL_IMAP_DIR="/opt/pmj/imap"
+sudo mkdir -p "$CENTRAL_IMAP_DIR"
+for f in "$APP_DIR/imap_config.json" "$APP_DIR/imap_success.json" \
+         "$CENTRAL_IMAP_DIR/imap_config.json" "$CENTRAL_IMAP_DIR/imap_success.json"; do
+    if [ ! -f "$f" ]; then
+        printf '{}\n' | sudo tee "$f" >/dev/null
+    fi
+done
+sudo chmod 755 /opt/pmj "$CENTRAL_IMAP_DIR"
+sudo chown -R $APP_USER:$APP_USER "$CENTRAL_IMAP_DIR"
+
 sudo chown -R $APP_USER:$APP_USER $APP_DIR
 
 # Permission fix so nginx (www-data) can read static/ + templates/.
