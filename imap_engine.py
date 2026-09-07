@@ -868,28 +868,70 @@ class ImapChecker:
 
         return data
 
+    @staticmethod
+    def _imap_banner_ok(server, port, proxy=None, timeout=8):
+        """Cek apakah server:port punya IMAP banner (gak login).
+
+        Return (True, ssl_flag) kalau banner IMAP valid; (False, None) kalau
+        gagal connect / bukan IMAP. Dipakai untuk tentukan apakah IMAP server
+        benar-benar ada — terpisah dari apakah login akun tertentu berhasil.
+        """
+        import ssl as _ssl
+        is_ssl = port == 993
+        try:
+            if proxy:
+                raw = create_proxy_tunnel(
+                    proxy["host"], int(proxy["port"]),
+                    proxy.get("user", ""), proxy.get("pass", ""),
+                    server, port, use_ssl=is_ssl,
+                )
+                raw.settimeout(timeout)
+                banner = raw.recv(256).decode("utf-8", errors="replace")
+                try:
+                    raw.close()
+                except Exception:
+                    pass
+            else:
+                sock = socket.create_connection((server, port), timeout=timeout)
+                if is_ssl:
+                    ctx = _ssl.create_default_context()
+                    ctx.check_hostname = False
+                    ctx.verify_mode = _ssl.CERT_NONE
+                    sock = ctx.wrap_socket(sock, server_hostname=server)
+                else:
+                    sock.settimeout(timeout)
+                banner = sock.recv(256).decode("utf-8", errors="replace")
+                try:
+                    sock.close()
+                except Exception:
+                    pass
+            b = banner.upper()
+            return ("* OK" in b or "IMAP" in b), is_ssl
+        except Exception:
+            return False, None
+
     def _try_imap_variants(self, domain, email_address, password, proxy=None):
         if self.is_stopped:
             return None
         from imap_config import _get_parent_domain
-        methods = [(993, "ssl"), (143, "starttls"), (143, "plain")]
         prefixes = ["imap", "mail", "imaps", ""]
+        # Urutan: 993 (SSL) dulu, lalu 143 STARTTLS, lalu 143 plain.
+        ports = [(993, True), (143, True), (143, False)]
 
         def _try_host(host):
-            for port, method in methods:
+            for port, use_ssl in ports:
                 if self.is_stopped:
                     return None
-                try:
-                    use_ssl = True if method != "plain" else False
-                    m = imap_via_proxy(proxy, host, port, use_ssl=use_ssl)
-                    m.login(email_address, password)
-                    m.logout()
-                    result = {"server": host, "port": port}
-                    if method == "plain":
-                        result["ssl"] = False
-                    return result
-                except Exception:
+                ok, ssl_flag = self._imap_banner_ok(host, port, proxy=proxy)
+                if not ok:
                     continue
+                # Server ada. Kembalikan config — login di worker pakai
+                # kredensial akun itu sendiri. Kalau login nanti gagal, itu
+                # masuk kategori die/skip, BUKAN unreg (server valid).
+                result = {"server": host, "port": port}
+                if not use_ssl:
+                    result["ssl"] = False
+                return result
             return None
 
         # 1) Coba prefix di full domain (sub.domain.com): imap.sub.domain.com,
