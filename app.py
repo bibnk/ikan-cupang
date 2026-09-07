@@ -26,7 +26,6 @@ from imap_engine import (
 from filelock import Timeout
 from get_email_engine import fetch_emails, delete_email, list_folders, list_folder_emails, get_single_email
 from loop_delete_engine import LoopDeleteJob
-from unreg_resolver import resolve_unreg_domains
 
 app = Flask(__name__)
 
@@ -417,80 +416,6 @@ def download_file(job_id, file_type):
 
     return send_file(filepath, as_attachment=True,
                      download_name=f"{file_type}_{job_id}.txt", mimetype="text/plain")
-
-
-# ---- Resolve Unreg API ----
-
-# Track resolve jobs
-resolve_jobs = {}
-
-
-@app.route("/api/resolve-unreg/<job_id>", methods=["POST"])
-@login_required
-def api_resolve_unreg(job_id):
-    """Resolve unreg domains from a job's unreg.txt file."""
-    # Check if already running
-    if job_id in resolve_jobs and resolve_jobs[job_id].get("status") == "running":
-        return jsonify({"error": "Resolve sudah berjalan untuk job ini"}), 400
-
-    unreg_path = os.path.join(JOBS_DIR, job_id, "unreg.txt")
-    if not os.path.exists(unreg_path):
-        return jsonify({"error": "File unreg.txt tidak ditemukan"}), 404
-
-    with open(unreg_path, "r", encoding="utf-8") as f:
-        domains = [line.strip() for line in f if line.strip()]
-
-    if not domains:
-        return jsonify({"error": "Tidak ada domain unreg", "added": 0}), 200
-
-    resolve_jobs[job_id] = {
-        "status": "running",
-        "total": len(domains),
-        "phase": "starting",
-        "checked": 0,
-        "found": 0,
-    }
-
-    def run_resolve():
-        def progress_cb(phase, checked, total, found):
-            resolve_jobs[job_id].update({
-                "phase": phase,
-                "checked": checked,
-                "phase_total": total,
-                "found": found,
-            })
-
-        try:
-            result = resolve_unreg_domains(domains, progress_callback=progress_cb)
-            resolve_jobs[job_id].update({
-                "status": "done",
-                "phase": "done",
-                "added": result["added"],
-                "mx_mapped": result.get("mx_mapped", 0),
-                "direct_found": result.get("direct_found", 0),
-                "total_config": result["total_config"],
-            })
-        except Exception as e:
-            resolve_jobs[job_id].update({
-                "status": "error",
-                "error": str(e),
-            })
-
-    import threading
-    t = threading.Thread(target=run_resolve, daemon=True)
-    t.start()
-
-    return jsonify({"message": "Resolve dimulai", "total_domains": len(domains)})
-
-
-@app.route("/api/resolve-unreg-status/<job_id>")
-@login_required
-def api_resolve_unreg_status(job_id):
-    """Get resolve progress."""
-    rjob = resolve_jobs.get(job_id)
-    if not rjob:
-        return jsonify({"status": "idle"})
-    return jsonify(rjob)
 
 
 # ---- Get Email API ----
