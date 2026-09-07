@@ -12,6 +12,7 @@ import json
 import socket
 import ssl as ssl_module
 import base64
+import time
 from queue import Queue
 from email.header import decode_header
 from datetime import datetime, timedelta
@@ -869,6 +870,37 @@ class ImapChecker:
         return data
 
     @staticmethod
+    def _recv_imap_banner(sock, timeout=8):
+        """Baca IMAP greeting dari socket dengan loop.
+
+        IMAP server kirim greeting ``* OK ...`` setelah connect. Greeting
+        bisa datang dalam beberapa packet atau tertunda (terutama saat
+        beban concurrency tinggi). Loop recv sampai ketemu ``* OK`` /
+        ``IMAP`` atau sampai timeout. Return banner string (lowercased
+        untuk cek) atau '' kalau kosong/timeout.
+        """
+        sock.settimeout(timeout)
+        chunks = b""
+        import time as _t
+        end = _t.monotonic() + timeout
+        while _t.monotonic() < end:
+            try:
+                data = sock.recv(512)
+            except socket.timeout:
+                break
+            except OSError:
+                break
+            if not data:
+                break
+            chunks += data
+            b = chunks.decode("utf-8", errors="replace").upper()
+            if "* OK" in b or "IMAP" in b:
+                break
+        banner = chunks.decode("utf-8", errors="replace")
+        b = banner.upper()
+        return ("* OK" in b or "IMAP" in b), banner
+
+    @staticmethod
     def _imap_banner_ok(server, port, proxy=None, timeout=8):
         """Cek apakah server:port punya IMAP banner (gak login).
 
@@ -885,12 +917,12 @@ class ImapChecker:
                     proxy.get("user", ""), proxy.get("pass", ""),
                     server, port, use_ssl=is_ssl,
                 )
-                raw.settimeout(timeout)
-                banner = raw.recv(256).decode("utf-8", errors="replace")
+                ok, _banner = ImapChecker._recv_imap_banner(raw, timeout=timeout)
                 try:
                     raw.close()
                 except Exception:
                     pass
+                return ok, is_ssl
             else:
                 sock = socket.create_connection((server, port), timeout=timeout)
                 if is_ssl:
@@ -898,15 +930,14 @@ class ImapChecker:
                     ctx.check_hostname = False
                     ctx.verify_mode = _ssl.CERT_NONE
                     sock = ctx.wrap_socket(sock, server_hostname=server)
+                    ok, _banner = ImapChecker._recv_imap_banner(sock, timeout=timeout)
                 else:
-                    sock.settimeout(timeout)
-                banner = sock.recv(256).decode("utf-8", errors="replace")
+                    ok, _banner = ImapChecker._recv_imap_banner(sock, timeout=timeout)
                 try:
                     sock.close()
                 except Exception:
                     pass
-            b = banner.upper()
-            return ("* OK" in b or "IMAP" in b), is_ssl
+                return ok, is_ssl
         except Exception:
             return False, None
 
@@ -934,31 +965,44 @@ class ImapChecker:
                 return result
             return None
 
-        # 1) Coba prefix di full domain (sub.domain.com): imap.sub.domain.com,
-        #    mail.sub.domain.com, imaps.sub.domain.com, sub.domain.com
-        for prefix in prefixes:
-            if self.is_stopped:
-                return None
-            server = f"{prefix}.{domain}" if prefix else domain
-            res = _try_host(server)
-            if res:
-                return res
-
-        # 2) Fallback paling akhir: strip subdomain -> parent domain.
-        #    Untuk user@sub.domain.com coba imap.domain.com, mail.domain.com,
-        #    imaps.domain.com, domain.com. Banyak provider IMAP-nya di parent
-        #    (mis. user@mail.corp.co.id -> imap.corp.co.id), bukan di subdomain.
-        parent = _get_parent_domain(domain)
-        if parent and parent != domain:
+        def _attempt_all():
+            # 1) Coba prefix di full domain (sub.domain.com):
+            #    imap.sub.domain.com, mail.sub.domain.com,
+            #    imaps.sub.domain.com, sub.domain.com
             for prefix in prefixes:
                 if self.is_stopped:
                     return None
-                server = f"{prefix}.{parent}" if prefix else parent
+                server = f"{prefix}.{domain}" if prefix else domain
                 res = _try_host(server)
                 if res:
                     return res
 
-        return None
+            # 2) Fallback paling akhir: strip subdomain -> parent domain.
+            #    Untuk user@sub.domain.com coba imap.domain.com,
+            #    mail.domain.com, imaps.sub.domain.com, domain.com. Banyak
+            #    provider IMAP-nya di parent (mis. user@mail.corp.co.id ->
+            #    imap.corp.co.id), bukan di subdomain.
+            parent = _get_parent_domain(domain)
+            if parent and parent != domain:
+                for prefix in prefixes:
+                    if self.is_stopped:
+                        return None
+                    server = f"{prefix}.{parent}" if prefix else parent
+                    res = _try_host(server)
+                    if res:
+                        return res
+            return None
+
+        result = _attempt_all()
+        if result:
+            return result
+        # Retry sekali kalau gagal: banyak false-unreg disebabkan transient
+        # connect/recv timeout saat 20 thread concurrent. Coba ulang
+        # seluruh urutan sekali lagi sebelum menandai domain sebagai unreg.
+        if self.is_stopped:
+            return None
+        time.sleep(0.3)
+        return _attempt_all()
 
     def _worker(self, queue):
         configs = DEFAULT_IMAP_CONFIG.copy()
