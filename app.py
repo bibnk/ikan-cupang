@@ -596,46 +596,6 @@ def history_page():
     return render_template("history.html", is_admin=session.get("is_admin", False))
 
 
-@app.route("/resolver")
-@login_required
-def resolver_page():
-    return render_template("resolver.html", is_admin=session.get("is_admin", False))
-
-
-@app.route("/api/resolver")
-@login_required
-def api_resolver():
-    """Resolver progress across all visible jobs — for the Resolver chart page.
-
-    Returns per-job time-series (unreg vs resolved over time) plus the list of
-    domains resolved during the check.
-    """
-    cleanup_expired_jobs()
-    user_hash = session.get("code_hash", "")
-    is_admin = session.get("is_admin", False)
-    out = []
-    for jid, jdata in jobs.items():
-        if not is_admin and jdata.get("owner") != user_hash:
-            continue
-        checker = jdata["checker"]
-        progress = checker.get_progress()
-        out.append({
-            "job_id": jid,
-            "status": progress.get("status"),
-            "total": progress.get("total", 0),
-            "checked": progress.get("checked", 0),
-            "unreg": progress.get("unreg", 0),
-            "resolved": progress.get("resolved", 0),
-            "resolve_history": progress.get("resolve_history", []),
-            "resolved_map": progress.get("resolved_map", {}),
-            "unreg_domains": progress.get("unreg_domains", []),
-            "created_at": jdata.get("created_at").isoformat() if jdata.get("created_at") else None,
-        })
-    # Newest first
-    out.sort(key=lambda x: x.get("created_at") or "", reverse=True)
-    return jsonify({"ok": True, "jobs": out})
-
-
 @app.route("/api/jobs")
 @login_required
 def list_jobs():
