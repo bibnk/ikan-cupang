@@ -871,25 +871,51 @@ class ImapChecker:
     def _try_imap_variants(self, domain, email_address, password, proxy=None):
         if self.is_stopped:
             return None
+        from imap_config import _get_parent_domain
         methods = [(993, "ssl"), (143, "starttls"), (143, "plain")]
         prefixes = ["imap", "mail", "imaps", ""]
 
-        for prefix in prefixes:
-            if self.is_stopped:
-                return None
+        def _try_host(host):
             for port, method in methods:
-                server = f"{prefix}.{domain}" if prefix else domain
+                if self.is_stopped:
+                    return None
                 try:
                     use_ssl = True if method != "plain" else False
-                    m = imap_via_proxy(proxy, server, port, use_ssl=use_ssl)
+                    m = imap_via_proxy(proxy, host, port, use_ssl=use_ssl)
                     m.login(email_address, password)
                     m.logout()
-                    result = {"server": server, "port": port}
+                    result = {"server": host, "port": port}
                     if method == "plain":
                         result["ssl"] = False
                     return result
                 except Exception:
                     continue
+            return None
+
+        # 1) Coba prefix di full domain (sub.domain.com): imap.sub.domain.com,
+        #    mail.sub.domain.com, imaps.sub.domain.com, sub.domain.com
+        for prefix in prefixes:
+            if self.is_stopped:
+                return None
+            server = f"{prefix}.{domain}" if prefix else domain
+            res = _try_host(server)
+            if res:
+                return res
+
+        # 2) Fallback paling akhir: strip subdomain -> parent domain.
+        #    Untuk user@sub.domain.com coba imap.domain.com, mail.domain.com,
+        #    imaps.domain.com, domain.com. Banyak provider IMAP-nya di parent
+        #    (mis. user@mail.corp.co.id -> imap.corp.co.id), bukan di subdomain.
+        parent = _get_parent_domain(domain)
+        if parent and parent != domain:
+            for prefix in prefixes:
+                if self.is_stopped:
+                    return None
+                server = f"{prefix}.{parent}" if prefix else parent
+                res = _try_host(server)
+                if res:
+                    return res
+
         return None
 
     def _worker(self, queue):
