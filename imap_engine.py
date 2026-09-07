@@ -870,14 +870,13 @@ class ImapChecker:
         return data
 
     @staticmethod
-    def _recv_imap_banner(sock, timeout=8):
+    def _recv_imap_banner(sock, timeout=5):
         """Baca IMAP greeting dari socket dengan loop.
 
         IMAP server kirim greeting ``* OK ...`` setelah connect. Greeting
         bisa datang dalam beberapa packet atau tertunda (terutama saat
         beban concurrency tinggi). Loop recv sampai ketemu ``* OK`` /
-        ``IMAP`` atau sampai timeout. Return banner string (lowercased
-        untuk cek) atau '' kalau kosong/timeout.
+        ``IMAP`` atau sampai timeout.
         """
         sock.settimeout(timeout)
         chunks = b""
@@ -900,8 +899,31 @@ class ImapChecker:
         b = banner.upper()
         return ("* OK" in b or "IMAP" in b), banner
 
+    def _resolve_host(self, host):
+        """Resolve hostname ke IP, dengan cache per-instance.
+
+        Return True kalau host resolve (punya A/AAAA record), False kalau
+        NXDOMAIN / resolve gagal. Cache supai tidak resolve berulang untuk
+        host yang sama (banyak akun domain sama). threaded lock untuk
+        safety antar worker.
+        """
+        if not hasattr(self, "_dns_cache"):
+            self._dns_cache = {}
+            self._dns_cache_lock = threading.Lock()
+        with self._dns_cache_lock:
+            if host in self._dns_cache:
+                return self._dns_cache[host]
+        try:
+            socket.getaddrinfo(host, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+            result = True
+        except Exception:
+            result = False
+        with self._dns_cache_lock:
+            self._dns_cache[host] = result
+        return result
+
     @staticmethod
-    def _imap_banner_ok(server, port, proxy=None, timeout=8):
+    def _imap_banner_ok(server, port, proxy=None, timeout=5):
         """Cek apakah server:port punya IMAP banner (gak login).
 
         Return (True, ssl_flag) kalau banner IMAP valid; (False, None) kalau
@@ -946,10 +968,15 @@ class ImapChecker:
             return None
         from imap_config import _get_parent_domain
         prefixes = ["imap", "mail", "imaps", ""]
-        # Urutan: 993 (SSL) dulu, lalu 143 STARTTLS, lalu 143 plain.
-        ports = [(993, True), (143, True), (143, False)]
+        # Urutan: 993 (SSL) dulu, lalu 143 STARTTLS.
+        ports = [(993, True), (143, True)]
 
         def _try_host(host):
+            # Pre-resolve DNS: kalau host tidak resolve, skip semua port
+            # cepat — tidak perlu coba connect (cegah connect timeout 8s
+            # ke host NXDOMAIN yang sebenarnya gagal di DNS).
+            if proxy is None and not self._resolve_host(host):
+                return None
             for port, use_ssl in ports:
                 if self.is_stopped:
                     return None
