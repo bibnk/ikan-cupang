@@ -689,6 +689,10 @@ class ImapChecker:
         self.resolved_map = {}
         self.resolved_count = 0
         self.resolver_lock = threading.Lock()
+        # In-flight guard: domains currently being resolved. Prevents the same
+        # domain being resolved twice concurrently (worker variants vs the
+        # auto-resolver loop, or two resolver passes racing).
+        self._resolving = set()
         # Time-series for the progress chart (sampled ~1/sec)
         self.resolve_history = []  # [{"t": epoch, "unreg": n, "resolved": n, "checked": n}]
         self._history_lock = threading.Lock()
@@ -843,12 +847,28 @@ class ImapChecker:
     def _record_resolve(self, domain, cfg, via):
         """Record a successful domain resolution for the resolver chart."""
         with self.resolver_lock:
+            self._resolving.discard(domain)
             if domain not in self.resolved_map:
                 entry = {"server": cfg.get("server"), "port": cfg.get("port"), "via": via}
                 if cfg.get("ssl") is False:
                     entry["ssl"] = False
                 self.resolved_map[domain] = entry
                 self.resolved_count += 1
+
+    def _try_claim_resolve(self, domain):
+        """Atomically claim a domain for resolution. Returns False if the
+        domain is already resolved or currently being resolved elsewhere —
+        callers must SKIP it in that case."""
+        with self.resolver_lock:
+            if domain in self.resolved_map or domain in self._resolving:
+                return False
+            self._resolving.add(domain)
+            return True
+
+    def _release_resolve(self, domain):
+        """Release an unsuccessful claim so a later pass can retry."""
+        with self.resolver_lock:
+            self._resolving.discard(domain)
 
     def _sample_history(self):
         """Append one time-series point for the progress chart."""
@@ -898,11 +918,16 @@ class ImapChecker:
             with self.unreg_lock:
                 pending = list(self.unreg_domains)
             with self.resolver_lock:
-                pending = [d for d in pending if d not in self.resolved_map]
+                pending = [d for d in pending
+                           if d not in self.resolved_map and d not in self._resolving]
 
             for domain in pending:
                 if self.is_stopped or self.status != "running":
                     break
+                # Skip if another thread (worker variants or a previous pass)
+                # already resolved or is currently resolving this domain
+                if not self._try_claim_resolve(domain):
+                    continue
                 cfg = None
                 via = None
                 # MX-based resolve first (cheap)
@@ -940,6 +965,9 @@ class ImapChecker:
                     # Drop from unreg set so it stops counting as unresolved
                     with self.unreg_lock:
                         self.unreg_domains.discard(domain)
+                else:
+                    # Not resolved this pass — release so a later pass retries
+                    self._release_resolve(domain)
 
             time.sleep(1)
 
@@ -1058,6 +1086,7 @@ class ImapChecker:
                 result = self._try_imap_variants(domain, email_addr, password, proxy=proxy)
                 if result:
                     self._update_imap_config(domain, result)
+                    # Record for chart; no-op if auto-resolver got it first
                     self._record_resolve(domain, result, "variants")
                     imap_cfg = result
                     configs[domain] = result
