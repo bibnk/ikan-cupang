@@ -872,7 +872,7 @@ class ImapChecker:
         if self.is_stopped:
             return None
         methods = [(993, "ssl"), (143, "starttls"), (143, "plain")]
-        prefixes = ["imap", "mail", ""]
+        prefixes = ["imap", "mail", "imaps", ""]
 
         for prefix in prefixes:
             if self.is_stopped:
