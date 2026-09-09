@@ -899,29 +899,6 @@ class ImapChecker:
         b = banner.upper()
         return ("* OK" in b or "IMAP" in b), banner
 
-    def _resolve_host(self, host):
-        """Resolve hostname ke IP, dengan cache per-instance.
-
-        Return True kalau host resolve (punya A/AAAA record), False kalau
-        NXDOMAIN / resolve gagal. Cache supai tidak resolve berulang untuk
-        host yang sama (banyak akun domain sama). threaded lock untuk
-        safety antar worker.
-        """
-        if not hasattr(self, "_dns_cache"):
-            self._dns_cache = {}
-            self._dns_cache_lock = threading.Lock()
-        with self._dns_cache_lock:
-            if host in self._dns_cache:
-                return self._dns_cache[host]
-        try:
-            socket.getaddrinfo(host, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
-            result = True
-        except Exception:
-            result = False
-        with self._dns_cache_lock:
-            self._dns_cache[host] = result
-        return result
-
     @staticmethod
     def _imap_banner_ok(server, port, proxy=None, timeout=3):
         """Cek apakah server:port punya IMAP banner (gak login).
@@ -972,11 +949,6 @@ class ImapChecker:
         ports = [(993, True)]  # 993 SSL only for unreg detect
 
         def _try_host(host):
-            # Pre-resolve DNS: kalau host tidak resolve, skip semua port
-            # cepat — tidak perlu coba connect (cegah connect timeout 8s
-            # ke host NXDOMAIN yang sebenarnya gagal di DNS).
-            if proxy is None and not self._resolve_host(host):
-                return None
             for port, use_ssl in ports:
                 if self.is_stopped:
                     return None
