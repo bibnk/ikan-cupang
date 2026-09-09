@@ -1168,44 +1168,6 @@ class ImapChecker:
         for acc in self.accounts:
             self._queue.put(acc)
 
-        # Pre-resolve DNS di BACKGROUND thread — tidak block run().
-        # Worker langsung mulai, kalau domain belum di cache, worker
-        # resolve sendiri (lazy). Pre-resolve populate cache untuk domain
-        # yang belum dicek, jadi worker berikutnya tinggal baca cache.
-        if not hasattr(self, "_dns_cache"):
-            self._dns_cache = {}
-            self._dns_cache_lock = threading.Lock()
-
-        def _bg_presolve():
-            import concurrent.futures
-            from imap_config import _get_parent_domain
-            unique_domains = set(
-                acc["email"].split("@")[-1].lower() for acc in self.accounts
-            )
-            candidate_hosts = set()
-            for domain in unique_domains:
-                for prefix in ["imap", "mail", "imaps", ""]:
-                    candidate_hosts.add(f"{prefix}.{domain}" if prefix else domain)
-                parent = _get_parent_domain(domain)
-                if parent and parent != domain:
-                    for prefix in ["imap", "mail", "imaps", ""]:
-                        candidate_hosts.add(f"{prefix}.{parent}" if prefix else parent)
-
-            def _do_resolve(host):
-                try:
-                    socket.getaddrinfo(host, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
-                    return host, True
-                except Exception:
-                    return host, False
-
-            with concurrent.futures.ThreadPoolExecutor(max_workers=50) as resolver:
-                for host, result in resolver.map(_do_resolve, candidate_hosts):
-                    with self._dns_cache_lock:
-                        self._dns_cache[host] = result
-
-        presolver = threading.Thread(target=_bg_presolve, daemon=True)
-        presolver.start()
-
         num_threads = min(self.max_threads, len(self.accounts))
         threads = []
         for _ in range(num_threads):
