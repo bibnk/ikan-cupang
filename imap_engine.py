@@ -92,7 +92,15 @@ def create_proxy_tunnel(proxy_host, proxy_port, proxy_user, proxy_pass, target_h
         raise ConnectionError(f"Proxy CONNECT failed: {status_line}")
     # Wrap with SSL if needed
     if use_ssl:
-        ctx = ssl_module.create_default_context()
+        # Permissive SSL context — allow legacy DH keys, weak ciphers
+        # untuk IMAP server lawas (mis. Jepang DH 1024-bit).
+        ctx = ssl_module.SSLContext(ssl_module.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl_module.CERT_NONE
+        try:
+            ctx.set_ciphers("ALL:@SECLEVEL=0")
+        except Exception:
+            pass
         sock = ctx.wrap_socket(sock, server_hostname=target_host)
     return sock
 
@@ -119,7 +127,15 @@ def imap_via_proxy(proxy_config, server, port, use_ssl=True, timeout=10):
     if not proxy_config:
         # Direct connection (no proxy)
         if port == 993 and use_ssl is not False:
-            return imaplib.IMAP4_SSL(server, port, timeout=timeout)
+            # Permissive SSL untuk legacy IMAP server
+            _ctx = ssl_module.SSLContext(ssl_module.PROTOCOL_TLS_CLIENT)
+            _ctx.check_hostname = False
+            _ctx.verify_mode = ssl_module.CERT_NONE
+            try:
+                _ctx.set_ciphers("ALL:@SECLEVEL=0")
+            except Exception:
+                pass
+            return imaplib.IMAP4_SSL(server, port, timeout=timeout, ssl_context=_ctx)
         elif use_ssl is False:
             return imaplib.IMAP4(server, port, timeout=timeout)
         else:
@@ -925,9 +941,20 @@ class ImapChecker:
             else:
                 sock = socket.create_connection((server, port), timeout=timeout)
                 if is_ssl:
-                    ctx = _ssl.create_default_context()
+                    # Permissive SSL context untuk legacy IMAP server:
+                    # - CERT_NONE: skip cert validation (self-signed OK)
+                    # - set_ciphers ALL:@SECLEVEL=0: allow weak DH keys,
+                    #   RC4, MD5, SSLv3 — banyak IMAP Jepang lawas pakai
+                    #   DH 1024-bit yang default OpenSSL 3.x reject
+                    #   (DH_KEY_TOO_SMALL error).
+                    ctx = _ssl.SSLContext(_ssl.PROTOCOL_TLS_CLIENT)
                     ctx.check_hostname = False
                     ctx.verify_mode = _ssl.CERT_NONE
+                    try:
+                        ctx.set_ciphers("ALL:@SECLEVEL=0")
+                    except Exception:
+                        pass
+                    ctx.minimum_version = _ssl.TLSVersion.SSLv3 if hasattr(_ssl.TLSVersion, "SSLv3") else _ssl.TLSVersion.TLSv1
                     sock = ctx.wrap_socket(sock, server_hostname=server)
                     ok, _banner = ImapChecker._recv_imap_banner(sock, timeout=timeout)
                 else:
