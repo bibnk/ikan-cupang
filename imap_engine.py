@@ -1035,9 +1035,26 @@ class ImapChecker:
             if not imap_cfg and domain not in self.unreg_domains:
                 result = self._try_imap_variants(domain, email_addr, password, proxy=proxy)
                 if result:
-                    self._update_imap_config(domain, result)
+                    # Save di root domain, bukan subdomain. Kalau server
+                    # hostname mengandung parent/grandparent, artinya IMAP-nya
+                    # ada di root — save di root supaya subdomain lain
+                    # auto-lookup via parent fallback (tidak bikin entry
+                    # redundant per-subdomain).
+                    from imap_config import _get_parent_domain
+                    save_domain = domain
+                    server_lower = result["server"].lower()
+                    # Cek parent
+                    parent = _get_parent_domain(domain)
+                    if parent and parent in server_lower:
+                        save_domain = parent
+                        # Cek grandparent juga
+                        grandparent = _get_parent_domain(parent)
+                        if grandparent and grandparent in server_lower:
+                            save_domain = grandparent
+                    self._update_imap_config(save_domain, result)
                     imap_cfg = result
                     configs[domain] = result
+                    configs[save_domain] = result
                 else:
                     self._write_unreg(domain)
                     self._update_progress("unreg")
