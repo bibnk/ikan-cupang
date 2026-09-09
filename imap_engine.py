@@ -21,7 +21,7 @@ from filelock import FileLock, Timeout
 
 from imap_config import DEFAULT_IMAP_CONFIG, lookup_imap_config, IMAP_SUCCESS_PATH
 
-socket.setdefaulttimeout(10)
+socket.setdefaulttimeout(8)
 
 # Regex
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
@@ -870,7 +870,7 @@ class ImapChecker:
         return data
 
     @staticmethod
-    def _recv_imap_banner(sock, timeout=5):
+    def _recv_imap_banner(sock, timeout=3):
         """Baca IMAP greeting dari socket dengan loop.
 
         IMAP server kirim greeting ``* OK ...`` setelah connect. Greeting
@@ -923,7 +923,7 @@ class ImapChecker:
         return result
 
     @staticmethod
-    def _imap_banner_ok(server, port, proxy=None, timeout=5):
+    def _imap_banner_ok(server, port, proxy=None, timeout=3):
         """Cek apakah server:port punya IMAP banner (gak login).
 
         Return (True, ssl_flag) kalau banner IMAP valid; (False, None) kalau
@@ -969,7 +969,7 @@ class ImapChecker:
         from imap_config import _get_parent_domain
         prefixes = ["imap", "mail", "imaps", ""]
         # Urutan: 993 (SSL) dulu, lalu 143 STARTTLS.
-        ports = [(993, True), (143, True)]
+        ports = [(993, True)]  # 993 SSL only for unreg detect
 
         def _try_host(host):
             # Pre-resolve DNS: kalau host tidak resolve, skip semua port
@@ -1023,13 +1023,7 @@ class ImapChecker:
         result = _attempt_all()
         if result:
             return result
-        # Retry sekali kalau gagal: banyak false-unreg disebabkan transient
-        # connect/recv timeout saat 20 thread concurrent. Coba ulang
-        # seluruh urutan sekali lagi sebelum menandai domain sebagai unreg.
-        if self.is_stopped:
-            return None
-        time.sleep(0.3)
-        return _attempt_all()
+        return None
 
     def _worker(self, queue):
         configs = DEFAULT_IMAP_CONFIG.copy()
@@ -1173,6 +1167,41 @@ class ImapChecker:
         self._queue = Queue()
         for acc in self.accounts:
             self._queue.put(acc)
+
+        # Pre-resolve DNS untuk semua unique domain sebelum spawn workers.
+        # Dengan 500 thread, kalau tiap worker resolve sendiri, 500 thread
+        # simultaneous getaddrinfo ke systemd-resolved stub bisa overwhelm.
+        # Pre-resolve dengan ThreadPoolExecutor (max 50 concurrent) populate
+        # cache _dns_cache sebelum worker mulai, jadi worker tinggal baca cache.
+        import concurrent.futures
+        unique_domains = set(
+            acc["email"].split("@")[-1].lower() for acc in self.accounts
+        )
+        from imap_config import _get_parent_domain
+        candidate_hosts = set()
+        for domain in unique_domains:
+            for prefix in ["imap", "mail", "imaps", ""]:
+                candidate_hosts.add(f"{prefix}.{domain}" if prefix else domain)
+            parent = _get_parent_domain(domain)
+            if parent and parent != domain:
+                for prefix in ["imap", "mail", "imaps", ""]:
+                    candidate_hosts.add(f"{prefix}.{parent}" if prefix else parent)
+
+        if not hasattr(self, "_dns_cache"):
+            self._dns_cache = {}
+            self._dns_cache_lock = threading.Lock()
+
+        def _do_resolve(host):
+            try:
+                socket.getaddrinfo(host, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+                return host, True
+            except Exception:
+                return host, False
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=50) as resolver:
+            for host, result in resolver.map(_do_resolve, candidate_hosts):
+                with self._dns_cache_lock:
+                    self._dns_cache[host] = result
 
         num_threads = min(self.max_threads, len(self.accounts))
         threads = []
