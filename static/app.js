@@ -31,6 +31,7 @@
     var statNoemail = document.getElementById("stat-noemail");
     var statDie = document.getElementById("stat-die");
     var statUnreg = document.getElementById("stat-unreg");
+    var statNoimap = document.getElementById("stat-noimap");
     var statSkipped = document.getElementById("stat-skipped");
 
     var liveSection = document.getElementById("live-section");
@@ -343,6 +344,7 @@
         statNoemail.textContent = d.noemail;
         statDie.textContent = d.die;
         statUnreg.textContent = d.unreg;
+        statNoimap.textContent = d.noimap || 0;
         statSkipped.textContent = d.skipped;
 
         if (d.status === "running") {

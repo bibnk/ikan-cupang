@@ -65,6 +65,7 @@
             if (j.noemail > 0) buttonsHtml += '<a href="' + APP_BASE + '/api/download/' + j.job_id + '/noemail" class="hist-dl-btn noemail" download>📭 NoEmail.txt</a>';
             if (j.die > 0) buttonsHtml += '<a href="' + APP_BASE + '/api/download/' + j.job_id + '/die" class="hist-dl-btn die" download>💀 Die.txt</a>';
             if (j.unreg > 0) buttonsHtml += '<a href="' + APP_BASE + '/api/download/' + j.job_id + '/unreg" class="hist-dl-btn unreg" download>❓ Unreg.txt</a>';
+            if (j.noimap > 0) buttonsHtml += '<a href="' + APP_BASE + '/api/download/' + j.job_id + '/noimap" class="hist-dl-btn noimap" download>📥 No IMAP.txt</a>';
             buttonsHtml += '<button class="hist-extend-btn" onclick="event.stopPropagation();extendJob(\'' + j.job_id + '\')">➕ Tambah 7 Hari</button>';
             buttonsHtml += '<button class="hist-delete-btn" onclick="event.stopPropagation();deleteJob(\'' + j.job_id + '\')">🗑️ Hapus</button>';
             buttonsHtml += '</div>';
