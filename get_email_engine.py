@@ -15,8 +15,21 @@ from html.parser import HTMLParser
 from datetime import datetime, timedelta
 
 from imap_config import DEFAULT_IMAP_CONFIG, lookup_imap_config, IMAP_SUCCESS_PATH, load_imap_success, save_imap_success
+import ssl as _ssl
 
 socket.setdefaulttimeout(60)
+
+# Permissive SSL context untuk legacy IMAP server (DH_KEY_TOO_SMALL, dll).
+# Sama dengan yang dipakai di imap_engine.py.
+def _make_ssl_context():
+    ctx = _ssl.SSLContext(_ssl.PROTOCOL_TLS_CLIENT)
+    ctx.check_hostname = False
+    ctx.verify_mode = _ssl.CERT_NONE
+    try:
+        ctx.set_ciphers("ALL:@SECLEVEL=0")
+    except Exception:
+        pass
+    return ctx
 
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
@@ -262,7 +275,7 @@ def try_imap_variants(domain, email_address, password):
                 server = f"{prefix}.{d}"
                 try:
                     if port == 993:
-                        m = imaplib.IMAP4_SSL(server, port, timeout=15)
+                        m = imaplib.IMAP4_SSL(server, port, timeout=15, ssl_context=_make_ssl_context())
                     else:
                         m = imaplib.IMAP4(server, port, timeout=15)
                         m.starttls()
@@ -312,7 +325,7 @@ def _try_connect(cfg, email_address):
     """Coba koneksi IMAP dengan konfigurasi tertentu. Returns mail connection atau raise."""
     use_ssl = cfg.get('ssl', True)
     if cfg['port'] == 993 and use_ssl is not False:
-        mail = imaplib.IMAP4_SSL(cfg['server'], cfg['port'])
+        mail = imaplib.IMAP4_SSL(cfg['server'], cfg['port'], ssl_context=_make_ssl_context())
     elif use_ssl is False:
         mail = imaplib.IMAP4(cfg['server'], cfg['port'])
     else:
@@ -347,7 +360,7 @@ def connect_imap(email_address, password):
         try:
             use_ssl = cfg.get('ssl', True)
             if cfg['port'] == 993 and use_ssl is not False:
-                mail = imaplib.IMAP4_SSL(cfg['server'], cfg['port'])
+                mail = imaplib.IMAP4_SSL(cfg['server'], cfg['port'], ssl_context=_make_ssl_context())
             elif use_ssl is False:
                 mail = imaplib.IMAP4(cfg['server'], cfg['port'])
             else:
