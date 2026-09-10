@@ -317,22 +317,51 @@
     // ---- SSE ----
     function listenProgress(jobId) {
         if (evtSource) evtSource.close();
-        evtSource = new EventSource(APP_BASE+"/api/status/" + jobId);
+        var pollTimer = null;
 
-        evtSource.onmessage = function (event) {
-            var d = JSON.parse(event.data);
-            updateUI(d);
-            if (d.status === "done" || d.status === "stopped") {
+        function startPolling() {
+            if (pollTimer) return;
+            pollTimer = setInterval(function () {
+                fetch(APP_BASE + "/api/status/" + jobId)
+                    .then(function (r) { return r.text(); })
+                    .then(function (text) {
+                        var match = text.match(/data: (.+)/);
+                        if (match) {
+                            var d = JSON.parse(match[1]);
+                            updateUI(d);
+                            if (d.status === "done" || d.status === "stopped") {
+                                clearInterval(pollTimer);
+                                pollTimer = null;
+                                onComplete(d);
+                            }
+                        }
+                    })
+                    .catch(function () {});
+            }, 2000);
+        }
+
+        try {
+            evtSource = new EventSource(APP_BASE+"/api/status/" + jobId);
+
+            evtSource.onmessage = function (event) {
+                var d = JSON.parse(event.data);
+                updateUI(d);
+                if (d.status === "done" || d.status === "stopped") {
+                    evtSource.close();
+                    evtSource = null;
+                    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+                    onComplete(d);
+                }
+            };
+
+            evtSource.onerror = function () {
                 evtSource.close();
                 evtSource = null;
-                onComplete(d);
-            }
-        };
-
-        evtSource.onerror = function () {
-            evtSource.close();
-            evtSource = null;
-        };
+                startPolling();
+            };
+        } catch (e) {
+            startPolling();
+        }
     }
 
     function updateUI(d) {
