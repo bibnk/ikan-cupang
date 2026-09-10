@@ -382,7 +382,7 @@ def connect_imap(email_address, password):
         try:
             use_ssl = result.get('ssl', True)
             if result['port'] == 993 and use_ssl is not False:
-                mail = imaplib.IMAP4_SSL(result['server'], result['port'])
+                mail = imaplib.IMAP4_SSL(result['server'], result['port'], ssl_context=_make_ssl_context())
             elif use_ssl is False:
                 mail = imaplib.IMAP4(result['server'], result['port'])
             else:
