@@ -1028,6 +1028,7 @@ class ImapChecker:
                 'hostinger.com.ar': 'imap.hostinger.com',
                 'hostinger.com.br': 'imap.hostinger.com',
                 'hostinger.co.id': 'imap.hostinger.com',
+                'hostinger.mx': 'imap.hostinger.mx',
                 # OVH / Scaleway (MX: *.ovh.net, *.online.net)
                 'ovh.net': 'ssl0.ovh.net',
                 'online.net': 'imap.online.net',
@@ -1075,7 +1076,7 @@ class ImapChecker:
 
         # Prefix attempt (fallback kalau MX tidak match atau tidak ada MX)
         prefixes = ["imap", "mail", "imaps", ""]
-        ports = [(993, True)]  # 993 SSL only for unreg detect
+        ports = [(993, True), (143, False)]  # 993 SSL dulu, lalu 143 plain
 
         def _try_host(host):
             for port, use_ssl in ports:
