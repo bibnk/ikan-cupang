@@ -981,20 +981,51 @@ class ImapChecker:
             mx_str = ' '.join(str(r.exchange).lower().rstrip('.') for r in mx_answers)
 
             mx_imap_map = {
+                # Hostinger (MX: *.hostinger.com)
                 'hostinger.com': 'imap.hostinger.com',
                 'hostinger.in': 'imap.hostinger.in',
                 'hostinger.co': 'imap.hostinger.com',
+                'hostinger.es': 'imap.hostinger.es',
+                'hostinger.fr': 'imap.hostinger.fr',
                 'hostinger.com.ar': 'imap.hostinger.com',
                 'hostinger.com.br': 'imap.hostinger.com',
                 'hostinger.co.id': 'imap.hostinger.com',
+                # OVH / Scaleway (MX: *.ovh.net, *.online.net)
                 'ovh.net': 'ssl0.ovh.net',
-                'mclink.it': 'imap.mclink.it',
+                'online.net': 'imap.online.net',
+                # One.com (MX: *.one.com)
+                'one.com': 'imap.one.com',
+                # Register.it (MX: mail.register.it)
+                'register.it': 'imap.register.it',
+                # IONOS (MX: *.ionos.co.uk)
+                'ionos.co.uk': 'imap.ionos.co.uk',
+                'ionos.de': 'imap.ionos.de',
+                'ionos.com': 'imap.ionos.com',
+                # Gandi (MX: mail.gandi.net)
+                'gandi.net': 'mail.gandi.net',
+                # Securence (MX: *.securence.com)
+                'securence.com': 'imap.securence.com',
+                # Integrity (MX: mx.integrity.hu)
+                'integrity.hu': 'mail.integrity.hu',
+                # Nominalia (MX: mail.nominalia.com)
+                'nominalia.com': 'mail.nominalia.com',
+                # Yandex (MX: mx.yandex.net)
                 'yandex.net': 'imap.yandex.com',
+                # Alibaba (MX: *.mxhichina.com)
                 'mxhichina.com': 'imap.mxhichina.com',
+                # Mclink (MX: *.mclink.it)
+                'mclink.it': 'imap.mclink.it',
+                # Domeneshop (MX: mx.domeneshop.no)
                 'domeneshop.no': 'mail.domeneshop.no',
+                # Saunalahti (MX: mail.saunalahti.fi)
                 'saunalahti.fi': 'mail.saunalahti.fi',
-                'b5z.net': 'imap.b5z.net',
+                # Vadesecure (MX: *.vadesecure.com)
                 'vadesecure.com': 'imap.vadesecure.com',
+                # 100ws.com (MX: mbox.100ws.com)
+                '100ws.com': 'mail.100ws.com',
+                # Cloudflare email routing — NO IMAP, skip
+                # b5z.net — NO IMAP direct, skip
+                # Locaweb — NO IMAP direct, skip
             }
 
             for mx_pattern, imap_server in mx_imap_map.items():
