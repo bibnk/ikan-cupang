@@ -647,6 +647,7 @@ class ImapChecker:
         self.noemail_file = os.path.join(self.results_dir, "noemail.txt")
         self.die_file = os.path.join(self.results_dir, "die.txt")
         self.unreg_file = os.path.join(self.results_dir, "unreg.txt")
+        self.noimap_file = os.path.join(self.results_dir, "noimap.txt")
         self.domain_skip_file = os.path.join(self.results_dir, "domain_skipped.txt")
 
         # Locks
@@ -654,12 +655,18 @@ class ImapChecker:
         self.noemail_lock = threading.Lock()
         self.die_lock = threading.Lock()
         self.unreg_lock = threading.Lock()
+        self.noimap_lock = threading.Lock()
         self.domain_skip_lock = threading.Lock()
         self.imap_config_lock = threading.Lock()
 
         # State
         self.unreg_domains = set()
+        self.noimap_domains = set()
         self.imap_success_config = self._load_imap_success_config()
+        # MX cache: domain -> (has_mx, mx_str). Hindari 1000x DNS query
+        # untuk domain yang sama. Thread-safe.
+        self._mx_cache = {}
+        self._mx_cache_lock = threading.Lock()
 
         # Skip-domains snapshot for this job (Requirement 5.1, 5.3).
         # Loaded BEFORE any worker thread is spawned in run() so the snapshot
@@ -697,6 +704,7 @@ class ImapChecker:
         self.noemail_count = 0
         self.die_count = 0
         self.unreg_count = 0
+        self.noimap_count = 0
         self.skipped_count = 0
         self.progress_lock = threading.Lock()
 
@@ -845,6 +853,13 @@ class ImapChecker:
                     f.write(f"{domain}\n")
                 self.unreg_domains.add(domain)
 
+    def _write_noimap(self, domain):
+        with self.noimap_lock:
+            if domain not in self.noimap_domains:
+                with open(self.noimap_file, 'a', encoding='utf-8') as f:
+                    f.write(f"{domain}\n")
+                self.noimap_domains.add(domain)
+
     def _write_domain_skip(self, email_addr, password):
         with self.domain_skip_lock:
             with open(self.domain_skip_file, 'a', encoding='utf-8') as f:
@@ -861,6 +876,8 @@ class ImapChecker:
                 self.die_count += 1
             elif category == "unreg":
                 self.unreg_count += 1
+            elif category == "noimap":
+                self.noimap_count += 1
             elif category == "skipped":
                 self.skipped_count += 1
 
@@ -876,6 +893,7 @@ class ImapChecker:
                 "noemail": self.noemail_count,
                 "die": self.die_count,
                 "unreg": self.unreg_count,
+                "noimap": self.noimap_count,
                 "skipped": self.skipped_count,
             }
 
@@ -969,17 +987,37 @@ class ImapChecker:
 
     def _try_imap_variants(self, domain, email_address, password, proxy=None):
         if self.is_stopped:
-            return None
+            return None, False
         from imap_config import _get_parent_domain
 
         # MX-based detection PERTAMA — cepat (1 DNS query) vs prefix
         # attempt (4 connect x 3s timeout = 12s untuk domain unreg).
         # Kalau MX match provider known, langsung pakai IMAP provider.
-        try:
-            import dns.resolver
-            mx_answers = dns.resolver.resolve(domain, 'MX', lifetime=3)
-            mx_str = ' '.join(str(r.exchange).lower().rstrip('.') for r in mx_answers)
+        has_mx = False
+        mx_str = ''
+        # MX cache key: pakai parent domain. test0.hostinger.com -> hostinger.com
+        # Semua subdomain dari domain yang sama share 1 MX lookup.
+        from imap_config import _get_parent_domain
+        _mx_key = _get_parent_domain(domain) or domain
+        cached = None
+        with self._mx_cache_lock:
+            cached = self._mx_cache.get(_mx_key)
+        if cached is not None:
+            has_mx, mx_str = cached
+        else:
+            try:
+                import dns.resolver
+                mx_answers = dns.resolver.resolve(domain, 'MX', lifetime=3)
+                has_mx = True
+                mx_str = ' '.join(str(r.exchange).lower().rstrip('.') for r in mx_answers)
+            except Exception:
+                has_mx = False
+                mx_str = ''
+            # Cache hasil (positif maupun negatif)
+            with self._mx_cache_lock:
+                self._mx_cache[_mx_key] = (has_mx, mx_str)
 
+        if has_mx:
             mx_imap_map = {
                 # Hostinger (MX: *.hostinger.com)
                 'hostinger.com': 'imap.hostinger.com',
@@ -1032,10 +1070,8 @@ class ImapChecker:
                 if mx_pattern in mx_str:
                     ok, ssl_flag = self._imap_banner_ok(imap_server, 993, proxy=proxy)
                     if ok:
-                        return {"server": imap_server, "port": 993}
+                        return {"server": imap_server, "port": 993}, has_mx
                     break  # match tapi banner gagal → lanjut prefix
-        except Exception:
-            pass
 
         # Prefix attempt (fallback kalau MX tidak match atau tidak ada MX)
         prefixes = ["imap", "mail", "imaps", ""]
@@ -1087,8 +1123,8 @@ class ImapChecker:
 
         result = _attempt_all()
         if result:
-            return result
-        return None
+            return result, has_mx
+        return None, has_mx
 
     def _worker(self, queue):
         configs = DEFAULT_IMAP_CONFIG.copy()
@@ -1126,7 +1162,7 @@ class ImapChecker:
                 imap_cfg = {"server": "mail.twc.com", "port": 143, "ssl": False}
 
             if not imap_cfg and domain not in self.unreg_domains:
-                result = self._try_imap_variants(domain, email_addr, password, proxy=proxy)
+                result, has_mx = self._try_imap_variants(domain, email_addr, password, proxy=proxy)
                 if result:
                     # Save di root domain, bukan subdomain. Kalau server
                     # hostname mengandung parent/grandparent, artinya IMAP-nya
@@ -1149,8 +1185,14 @@ class ImapChecker:
                     configs[domain] = result
                     configs[save_domain] = result
                 else:
-                    self._write_unreg(domain)
-                    self._update_progress("unreg")
+                    # has_mx True = domain punya MX tapi IMAP tidak ditemukan
+                    # has_mx False = domain tidak punya MX (true unreg)
+                    if has_mx:
+                        self._write_noimap(domain)
+                        self._update_progress("noimap")
+                    else:
+                        self._write_unreg(domain)
+                        self._update_progress("unreg")
                     queue.task_done()
                     continue
             elif not imap_cfg:
