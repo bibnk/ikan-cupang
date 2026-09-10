@@ -971,8 +971,43 @@ class ImapChecker:
         if self.is_stopped:
             return None
         from imap_config import _get_parent_domain
+
+        # MX-based detection PERTAMA — cepat (1 DNS query) vs prefix
+        # attempt (4 connect x 3s timeout = 12s untuk domain unreg).
+        # Kalau MX match provider known, langsung pakai IMAP provider.
+        try:
+            import dns.resolver
+            mx_answers = dns.resolver.resolve(domain, 'MX', lifetime=3)
+            mx_str = ' '.join(str(r.exchange).lower().rstrip('.') for r in mx_answers)
+
+            mx_imap_map = {
+                'hostinger.com': 'imap.hostinger.com',
+                'hostinger.in': 'imap.hostinger.in',
+                'hostinger.co': 'imap.hostinger.com',
+                'hostinger.com.ar': 'imap.hostinger.com',
+                'hostinger.com.br': 'imap.hostinger.com',
+                'hostinger.co.id': 'imap.hostinger.com',
+                'ovh.net': 'ssl0.ovh.net',
+                'mclink.it': 'imap.mclink.it',
+                'yandex.net': 'imap.yandex.com',
+                'mxhichina.com': 'imap.mxhichina.com',
+                'domeneshop.no': 'mail.domeneshop.no',
+                'saunalahti.fi': 'mail.saunalahti.fi',
+                'b5z.net': 'imap.b5z.net',
+                'vadesecure.com': 'imap.vadesecure.com',
+            }
+
+            for mx_pattern, imap_server in mx_imap_map.items():
+                if mx_pattern in mx_str:
+                    ok, ssl_flag = self._imap_banner_ok(imap_server, 993, proxy=proxy)
+                    if ok:
+                        return {"server": imap_server, "port": 993}
+                    break  # match tapi banner gagal → lanjut prefix
+        except Exception:
+            pass
+
+        # Prefix attempt (fallback kalau MX tidak match atau tidak ada MX)
         prefixes = ["imap", "mail", "imaps", ""]
-        # Urutan: 993 (SSL) dulu, lalu 143 STARTTLS.
         ports = [(993, True)]  # 993 SSL only for unreg detect
 
         def _try_host(host):

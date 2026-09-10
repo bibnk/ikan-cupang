@@ -1,3 +1,4 @@
 flask
 gunicorn
 filelock>=3.0
+dnspython
