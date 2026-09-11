@@ -1013,6 +1013,8 @@ class ImapChecker:
                 import dns.resolver
                 self._dns_semaphore.acquire()
                 try:
+                    if self.is_stopped:
+                        return None, False
                     mx_answers = dns.resolver.resolve(domain, 'MX', lifetime=3)
                 finally:
                     self._dns_semaphore.release()
@@ -1076,8 +1078,12 @@ class ImapChecker:
             }
 
             for mx_pattern, imap_server in mx_imap_map.items():
+                if self.is_stopped:
+                    return None, has_mx
                 if mx_pattern in mx_str:
                     ok, ssl_flag = self._imap_banner_ok(imap_server, 993, proxy=proxy)
+                    if self.is_stopped:
+                        return None, has_mx
                     if ok:
                         return {"server": imap_server, "port": 993}, has_mx
                     break  # match tapi banner gagal → lanjut prefix
@@ -1091,6 +1097,8 @@ class ImapChecker:
                 if self.is_stopped:
                     return None
                 ok, ssl_flag = self._imap_banner_ok(host, port, proxy=proxy)
+                if self.is_stopped:
+                    return None
                 if not ok:
                     continue
                 # Server ada. Kembalikan config — login di worker pakai
@@ -1103,22 +1111,16 @@ class ImapChecker:
             return None
 
         def _attempt_all():
-            # 1) Coba prefix di full domain (sub.domain.com):
-            #    imap.sub.domain.com, mail.sub.domain.com,
-            #    imaps.sub.domain.com, sub.domain.com
             for prefix in prefixes:
                 if self.is_stopped:
                     return None
                 server = f"{prefix}.{domain}" if prefix else domain
                 res = _try_host(server)
+                if self.is_stopped:
+                    return None
                 if res:
                     return res
 
-            # 2) Fallback paling akhir: strip subdomain -> parent domain.
-            #    Untuk user@sub.domain.com coba imap.domain.com,
-            #    mail.domain.com, imaps.sub.domain.com, domain.com. Banyak
-            #    provider IMAP-nya di parent (mis. user@mail.corp.co.id ->
-            #    imap.corp.co.id), bukan di subdomain.
             parent = _get_parent_domain(domain)
             if parent and parent != domain:
                 for prefix in prefixes:
@@ -1126,6 +1128,8 @@ class ImapChecker:
                         return None
                     server = f"{prefix}.{parent}" if prefix else parent
                     res = _try_host(server)
+                    if self.is_stopped:
+                        return None
                     if res:
                         return res
             return None
@@ -1172,6 +1176,9 @@ class ImapChecker:
 
             if not imap_cfg and domain not in self.unreg_domains:
                 result, has_mx = self._try_imap_variants(domain, email_addr, password, proxy=proxy)
+                if self.is_stopped:
+                    queue.task_done()
+                    continue
                 if result:
                     # Save di root domain, bukan subdomain. Kalau server
                     # hostname mengandung parent/grandparent, artinya IMAP-nya
