@@ -50,6 +50,7 @@
                 '<span class="hist-stat noemail">📭 ' + j.noemail + '</span>' +
                 '<span class="hist-stat die">💀 ' + j.die + '</span>' +
                 '<span class="hist-stat unreg">❓ ' + j.unreg + '</span>' +
+                '<span class="hist-stat noimap">📥 ' + (j.noimap || 0) + '</span>' +
                 '<span class="hist-stat skipped">⏭️ ' + j.skipped + '</span>' +
                 '</div>';
 
