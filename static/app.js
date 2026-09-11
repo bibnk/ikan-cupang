@@ -1130,6 +1130,7 @@
         enableDownloadLink("noemail", d.noemail > 0);
         enableDownloadLink("die", d.die > 0);
         enableDownloadLink("unreg", d.unreg > 0);
+        enableDownloadLink("noimap", d.noimap > 0);
         enableDownloadLink("domain_skipped", d.skipped > 0);
     }
 
