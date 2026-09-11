@@ -405,6 +405,7 @@ def download_file(job_id, file_type):
         "noemail": "noemail.txt",
         "die": "die.txt",
         "unreg": "unreg.txt",
+        "noimap": "noimap.txt",
         "domain_skipped": "domain_skipped.txt",
     }
     if file_type not in allowed:
