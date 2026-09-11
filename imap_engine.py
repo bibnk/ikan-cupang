@@ -667,6 +667,10 @@ class ImapChecker:
         # untuk domain yang sama. Thread-safe.
         self._mx_cache = {}
         self._mx_cache_lock = threading.Lock()
+        # Limit concurrent DNS MX lookup ke 50 — kalau 1000 thread
+        # simultaneous query DNS, resolver (8.8.8.8) rate-limit/drop
+        # query → MX lookup timeout → false-unreg.
+        self._dns_semaphore = threading.Semaphore(50)
 
         # Skip-domains snapshot for this job (Requirement 5.1, 5.3).
         # Loaded BEFORE any worker thread is spawned in run() so the snapshot
@@ -1007,7 +1011,11 @@ class ImapChecker:
         else:
             try:
                 import dns.resolver
-                mx_answers = dns.resolver.resolve(domain, 'MX', lifetime=3)
+                self._dns_semaphore.acquire()
+                try:
+                    mx_answers = dns.resolver.resolve(domain, 'MX', lifetime=3)
+                finally:
+                    self._dns_semaphore.release()
                 has_mx = True
                 mx_str = ' '.join(str(r.exchange).lower().rstrip('.') for r in mx_answers)
             except Exception:
