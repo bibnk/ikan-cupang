@@ -21,7 +21,7 @@ from filelock import FileLock, Timeout
 
 from imap_config import DEFAULT_IMAP_CONFIG, lookup_imap_config, IMAP_SUCCESS_PATH
 
-socket.setdefaulttimeout(8)
+socket.setdefaulttimeout(5)
 
 # Regex
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
@@ -670,7 +670,6 @@ class ImapChecker:
         # Limit concurrent DNS MX lookup ke 50 — kalau 1000 thread
         # simultaneous query DNS, resolver (8.8.8.8) rate-limit/drop
         # query → MX lookup timeout → false-unreg.
-        self._dns_semaphore = threading.Semaphore(50)
 
         # Skip-domains snapshot for this job (Requirement 5.1, 5.3).
         # Loaded BEFORE any worker thread is spawned in run() so the snapshot
@@ -908,7 +907,7 @@ class ImapChecker:
         return data
 
     @staticmethod
-    def _recv_imap_banner(sock, timeout=3):
+    def _recv_imap_banner(sock, timeout=2):
         """Baca IMAP greeting dari socket dengan loop.
 
         IMAP server kirim greeting ``* OK ...`` setelah connect. Greeting
@@ -938,7 +937,7 @@ class ImapChecker:
         return ("* OK" in b or "IMAP" in b), banner
 
     @staticmethod
-    def _imap_banner_ok(server, port, proxy=None, timeout=3):
+    def _imap_banner_ok(server, port, proxy=None, timeout=2):
         """Cek apakah server:port punya IMAP banner (gak login).
 
         Return (True, ssl_flag) kalau banner IMAP valid; (False, None) kalau
@@ -1011,13 +1010,9 @@ class ImapChecker:
         else:
             try:
                 import dns.resolver
-                self._dns_semaphore.acquire()
-                try:
-                    if self.is_stopped:
-                        return None, False
-                    mx_answers = dns.resolver.resolve(domain, 'MX', lifetime=3)
-                finally:
-                    self._dns_semaphore.release()
+                if self.is_stopped:
+                    return None, False
+                mx_answers = dns.resolver.resolve(domain, 'MX', lifetime=3)
                 has_mx = True
                 mx_str = ' '.join(str(r.exchange).lower().rstrip('.') for r in mx_answers)
             except Exception:
@@ -1222,12 +1217,19 @@ class ImapChecker:
                 m.login(email_addr, password)
                 return m
 
+            if self.is_stopped:
+                queue.task_done()
+                continue
+
             mail_conn = None
             try:
                 try:
                     mail_conn = try_connect(imap_cfg)
                     self._update_imap_config(domain, imap_cfg)
                 except Exception:
+                    if self.is_stopped:
+                        queue.task_done()
+                        break
                     fallback = self._try_imap_variants(domain, email_addr, password, proxy=proxy)
                     if not fallback:
                         raise
@@ -1235,7 +1237,18 @@ class ImapChecker:
                     configs[domain] = fallback
                     mail_conn = try_connect(fallback)
 
+                if self.is_stopped:
+                    try: mail_conn.logout()
+                    except: pass
+                    queue.task_done()
+                    continue
+
                 mail_conn.select("INBOX")
+                if self.is_stopped:
+                    try: mail_conn.logout()
+                    except: pass
+                    queue.task_done()
+                    continue
                 email_ids = set()
                 subject_matched_ids = set()  # bytes UIDs from SUBJECT branch — consumed by post-fetch gate
                 # Search by sender
@@ -1282,6 +1295,12 @@ class ImapChecker:
                                             "date": date_str
                                         })
 
+                if self.is_stopped:
+                    try: mail_conn.logout()
+                    except: pass
+                    queue.task_done()
+                    continue
+
                 if emails_data:
                     self._write_live(email_addr, password, emails_data)
                     self._update_progress("live")
@@ -1289,7 +1308,8 @@ class ImapChecker:
                     self._write_noemail(email_addr, password)
                     self._update_progress("noemail")
 
-                mail_conn.logout()
+                try: mail_conn.logout()
+                except: pass
             except Exception:
                 self._write_die(email_addr, password)
                 self._update_progress("die")
