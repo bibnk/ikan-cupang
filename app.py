@@ -323,7 +323,7 @@ def start_check():
     if not accounts:
         return jsonify({"error": "Tidak ditemukan akun valid. Format: email:password"}), 400
 
-    max_threads = max(1, min(max_threads, 1000))
+    max_threads = max(1, max_threads)
     search_days = max(1, min(search_days, 3650))
 
     job_id = str(uuid.uuid4())[:8]
@@ -545,6 +545,7 @@ def list_jobs():
             "die": progress.get("die", 0),
             "noemail": progress.get("noemail", 0),
             "unreg": progress.get("unreg", 0),
+            "noimap": progress.get("noimap", 0),
             "skipped": progress.get("skipped", 0),
             "created_at": jdata["created_at"].strftime("%Y-%m-%d %H:%M:%S"),
             "expires_at": jdata["expires_at"].strftime("%Y-%m-%d %H:%M:%S"),
